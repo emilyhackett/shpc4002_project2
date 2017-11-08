@@ -1,0 +1,6 @@
+# Ignore all open swap files
+*.swp
+# Ignore all object files
+*.o
+# Ignore main executable
+main
