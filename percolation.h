@@ -19,4 +19,4 @@ extern int** vbonds;	/* Vertical bonds */
 /* Functions associated with initialising the 2D lattice and bonds */
 extern int**	allocate_lattice(int M);
 extern void	initialise_lattice(int** lattice, int N, float occ_prob);
-extern void	initialise_bonds(int** hbonds, int** vbonds, int N, float occ_prob);
+extern void	display_lattice(int** lattice, int** hbonds, int** vbonds, int N);
