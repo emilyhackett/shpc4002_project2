@@ -1,4 +1,8 @@
-/* Header file for percolation project in C for SHPC4002 */
+/* Header file for percolation project in C for SHPC4002 
+ *	
+ *	Emily Hackett, 21489688
+ *	Computational Physics Honours
+ */
 
 /* External libraries used */
 #include <stdio.h>
@@ -16,7 +20,13 @@ extern int** sites;	/* Lattice sites */
 extern int** hbonds;	/* Horizontal bonds */
 extern int** vbonds;	/* Vertical bonds */
 
+/* Extra functions */
+extern int 	wrap(int val, int max);
+
 /* Functions associated with initialising the 2D lattice and bonds */
 extern int**	allocate_lattice(int M);
-extern void	initialise_lattice(int** lattice, int N, float occ_prob);
-extern void	display_lattice(int** lattice, int** hbonds, int** vbonds, int N);
+extern void	initialise_lattice(int** sites, int N, float occ_prob);
+extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N);
+
+/* Functions associated with the depth first search */
+extern int	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int row, int col);

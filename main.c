@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 		}
 		
 		span_type=atoi(argv[3]);	/* Spanning type */
-		if (span_type==0||span_type==1||span_type==0)	{
+		if (span_type==0||span_type==1||span_type==2)	{
 			printf("* Spanning type = %i\n",span_type);
 		}
 		else	{
@@ -79,6 +79,28 @@ int main(int argc, char *argv[])
 	/* Print the lattice */
 	display_lattice(sites,hbonds,vbonds,N);
 	
+	/* Conduct the depth-first search */
+	int i,j;
+	int num_nodes;
+	int max_num_nodes = 0;
+	
+	for (i = 0; i < N; i++)	{	
+		for (j = 0; j < N; j++)	{
+			
+			if (sites[i][j] == 1) 	{	
+				/* If the site is occupied, conduct depth_first_search */
+				num_nodes = depth_first_search(sites,hbonds,vbonds,N,i,j);
+				//printf("num_nodes @ [%i][%i] = %i\n",i,j,num_nodes);
+				
+				if (num_nodes > max_num_nodes)	{
+					max_num_nodes = num_nodes;
+				}
+			}
+		}
+	}		
+
+	printf("Maximum number of nodes in a cluster is %i\n",max_num_nodes);
+
 	clock_t end=clock();	/* End the timer */
 	double time_spent = (double)(end-start)/CLOCKS_PER_SEC;
 	
