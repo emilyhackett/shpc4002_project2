@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	/* Conduct the depth-first search */
 	int i,j;
 	
-	int num_nodes;
+	int num_clusters = 0;	/* Also, the size of the linked list */
 	int max_num_nodes = 0;
 
 	int spanning = 0;
@@ -111,13 +111,14 @@ int main(int argc, char *argv[])
 				}
 
 				head = push(head, tmp);	/* Push this cluster onto the list */
+				num_clusters = num_clusters + 1;
 			}
 		}
 	}
 
 	printf("\nRESULTS:\n");
 
-	display_list(head);	/* Display the found cluster information */
+	display_list(head, num_clusters);	/* Display the found cluster information */
 
 	printf("Maximum number of nodes in a cluster is %i.\n",max_num_nodes);
 	
