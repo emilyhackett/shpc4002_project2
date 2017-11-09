@@ -81,8 +81,13 @@ int main(int argc, char *argv[])
 	
 	/* Conduct the depth-first search */
 	int i,j;
+	
 	int num_nodes;
 	int max_num_nodes = 0;
+
+	int* cols_reached = malloc(N * sizeof(int));
+	int* rows_reached = malloc(N * sizeof(int));
+	int spanning = 0;
 	
 	for (i = 0; i < N; i++)	{	
 		for (j = 0; j < N; j++)	{
@@ -94,10 +99,15 @@ int main(int argc, char *argv[])
 				
 				if (num_nodes > max_num_nodes)	{
 					max_num_nodes = num_nodes;
+
+					if (spanning == 0)	{
+						/* Check if spanning since max node */
+						spanning = check_spanning(rows_reached,cols_reached,N,span_type);
+					}
 				}
 			}
 		}
-	}		
+	}
 
 	printf("Maximum number of nodes in a cluster is %i\n",max_num_nodes);
 
@@ -107,4 +117,5 @@ int main(int argc, char *argv[])
 	printf("TOTAL TIME: %10.6f\n",time_spent);
 	
 	return 0;
+	
 }

@@ -171,3 +171,28 @@ int depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int row, 
 	return num_nodes;
 }
 
+/* Checks if the cluster spans all columns or rows (or both) based on spanning type */
+int check_spanning(int* rows_reached, int* cols_reached, int N, int span_type)
+{	
+	int i;
+	int row_sum = 0;
+	int col_sum = 0;
+
+	for(i = 0; i < N; i++)	{
+		row_sum = row_sum + rows_reached[i];
+		col_sum = col_sum + cols_reached[i];
+	}
+
+	if (row_sum == N && col_sum == N && span_type == 2)	{
+		return 1;
+	}
+	else if (row_sum == N && span_type == 0)	{
+		return 1;
+	}
+	else if (col_sum == N && span_type == 1)	{
+		return 1;
+	}
+	else	{
+		return 0;
+	}
+}

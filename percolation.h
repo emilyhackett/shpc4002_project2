@@ -20,6 +20,9 @@ extern int** sites;	/* Lattice sites */
 extern int** hbonds;	/* Horizontal bonds */
 extern int** vbonds;	/* Vertical bonds */
 
+extern int* rows_reached;
+extern int* cols_reached;
+
 /* Extra functions */
 extern int 	wrap(int val, int max);
 
@@ -30,3 +33,6 @@ extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N);
 
 /* Functions associated with the depth first search */
 extern int	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int row, int col);
+
+/* Check for spanning clusters */
+extern int	check_spanning(int* rows_reached, int* cols_reached, int N, int span_type);
