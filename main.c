@@ -85,36 +85,48 @@ int main(int argc, char *argv[])
 	int num_nodes;
 	int max_num_nodes = 0;
 
-	int* cols_reached = malloc(N * sizeof(int));
-	int* rows_reached = malloc(N * sizeof(int));
 	int spanning = 0;
 	
+	NODE* head = NULL;	/* Initialise the start of cluster linked list */
+	
+	/* Loop over all lattice points and conduct a depth first search */
 	for (i = 0; i < N; i++)	{	
 		for (j = 0; j < N; j++)	{
 			
 			if (sites[i][j] == 1) 	{	
+				/* Allocate new cluster */
+				CLUSTER* tmp = initialise_cluster(N,i,j);
+
 				/* If the site is occupied, conduct depth_first_search */
-				num_nodes = depth_first_search(sites,hbonds,vbonds,N,i,j);
-				//printf("num_nodes @ [%i][%i] = %i\n",i,j,num_nodes);
+				tmp = depth_first_search(sites,hbonds,vbonds,N,i,j,tmp);
+				printf("num_nodes @ [%i][%i] = %i\n",i,j,tmp->num_nodes);
 				
-				if (num_nodes > max_num_nodes)	{
-					max_num_nodes = num_nodes;
+				if (tmp->num_nodes > max_num_nodes)	{
+					max_num_nodes = tmp->num_nodes;
 
 					if (spanning == 0)	{
 						/* Check if spanning since max node */
-						spanning = check_spanning(rows_reached,cols_reached,N,span_type);
+						spanning = check_spanning(tmp,N,span_type);
 					}
 				}
 			}
 		}
 	}
 
-	printf("Maximum number of nodes in a cluster is %i\n",max_num_nodes);
+	printf("\nRESULTS:\n");
+	printf("Maximum number of nodes in a cluster is %i.\n",max_num_nodes);
+	
+	if (spanning == 1)	{
+		printf("Spanning cluster of type %i exists.\n",span_type);
+	}
+	else	{
+		printf("No spanning cluster of type %i exists.\n",span_type);
+	}
 
 	clock_t end=clock();	/* End the timer */
 	double time_spent = (double)(end-start)/CLOCKS_PER_SEC;
 	
-	printf("TOTAL TIME: %10.6f\n",time_spent);
+	printf("\nTOTAL TIME: %10.6f\n",time_spent);
 	
 	return 0;
 	

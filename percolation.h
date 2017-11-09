@@ -9,6 +9,17 @@
 #include <stdlib.h>
 #include <time.h>
 
+typedef struct CLUSTER	{
+	int num_nodes;	
+	int* cols_reached;
+	int* rows_reached;
+} CLUSTER;
+
+typedef struct NODE	{
+	CLUSTER* data;
+	struct NODE* next;
+} NODE;
+
 /* Command line argument variables */
 extern float occ_prob;
 extern char perc_type;
@@ -23,7 +34,7 @@ extern int** vbonds;	/* Vertical bonds */
 extern int* rows_reached;
 extern int* cols_reached;
 
-/* Extra functions */
+/* Miscellaneous helper functions */
 extern int 	wrap(int val, int max);
 
 /* Functions associated with initialising the 2D lattice and bonds */
@@ -32,7 +43,12 @@ extern void	initialise_lattice(int** sites, int N, float occ_prob);
 extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N);
 
 /* Functions associated with the depth first search */
-extern int	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int row, int col);
+extern CLUSTER*	initialise_cluster(int N, int row, int col);
+extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int row, int col, CLUSTER* tmp);
 
 /* Check for spanning clusters */
-extern int	check_spanning(int* rows_reached, int* cols_reached, int N, int span_type);
+extern int	check_spanning(CLUSTER* tmp, int N, int span_type);
+
+/* Functions associated with linked list */
+extern NODE* 	push(struct NODE* head, struct CLUSTER* data);
+extern NODE*	pop(struct NODE* head, struct CLUSTER* data);
