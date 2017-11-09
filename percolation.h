@@ -52,3 +52,4 @@ extern int	check_spanning(CLUSTER* tmp, int N, int span_type);
 /* Functions associated with linked list */
 extern NODE* 	push(struct NODE* head, struct CLUSTER* data);
 extern NODE*	pop(struct NODE* head, struct CLUSTER* data);
+extern void	display_list(struct NODE* head);

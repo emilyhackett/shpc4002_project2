@@ -28,3 +28,33 @@ struct NODE* pop(struct NODE* head, struct CLUSTER* data)
 	return head;		/* Return the new head node */
 }
 
+/* Display the entire linked list of clusters.
+ * 	If bond percolation, will ignore the 'clusters' that have 1 node only 
+ */
+void display_list(struct NODE* head)
+{
+	NODE* current;
+	CLUSTER* data;
+	current = head;
+
+	int i=1;
+	int max_print_clusters = 30;
+	
+	if (current == NULL)	{
+		printf("No clusters in the list.\n");
+		return;
+	}
+
+	printf("CLUSTERS -->\n");
+	while ( current != NULL )	{
+		data = current->data;
+		printf("  Cluster %i with %i nodes\n",i,data->num_nodes);
+		i++;
+		current=current->next;
+		if (i > max_print_clusters)	{
+			printf("Warning! Will only display first %i clusters.\n\n",max_print_clusters);
+			return;
+		}
+	}
+	printf("\n");
+}

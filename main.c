@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 
 				/* If the site is occupied, conduct depth_first_search */
 				tmp = depth_first_search(sites,hbonds,vbonds,N,i,j,tmp);
-				printf("num_nodes @ [%i][%i] = %i\n",i,j,tmp->num_nodes);
+				//printf("num_nodes @ [%i][%i] = %i\n",i,j,tmp->num_nodes);
 				
 				if (tmp->num_nodes > max_num_nodes)	{
 					max_num_nodes = tmp->num_nodes;
@@ -109,11 +109,16 @@ int main(int argc, char *argv[])
 						spanning = check_spanning(tmp,N,span_type);
 					}
 				}
+
+				head = push(head, tmp);	/* Push this cluster onto the list */
 			}
 		}
 	}
 
 	printf("\nRESULTS:\n");
+
+	display_list(head);	/* Display the found cluster information */
+
 	printf("Maximum number of nodes in a cluster is %i.\n",max_num_nodes);
 	
 	if (spanning == 1)	{
