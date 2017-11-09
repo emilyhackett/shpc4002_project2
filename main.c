@@ -6,7 +6,8 @@ int main(int argc, char *argv[])
 {
 	printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
 	
-	clock_t start = clock();	/* Begin timing */
+	struct timeval start, end;	/* Allocate start and end time vals */
+	gettimeofday(&start, NULL);	/* Begin timing */
 
 	/* CHECK COMMAND LINE ARGUMENTS:
 	 * If 3 command line arguments read, assume they are:
@@ -99,7 +100,6 @@ int main(int argc, char *argv[])
 
 				/* If the site is occupied, conduct depth_first_search */
 				tmp = depth_first_search(sites,hbonds,vbonds,N,i,j,tmp);
-				//printf("num_nodes @ [%i][%i] = %i\n",i,j,tmp->num_nodes);
 				
 				if (tmp->num_nodes > max_num_nodes)	{
 					max_num_nodes = tmp->num_nodes;
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("\nRESULTS:\n");
+	printf("RESULTS:\n");
 
 	display_list(head, num_clusters);	/* Display the found cluster information */
 
@@ -129,9 +129,8 @@ int main(int argc, char *argv[])
 		printf("No spanning cluster of type %i exists.\n",span_type);
 	}
 
-	clock_t end=clock();	/* End the timer */
-	double time_spent = (double)(end-start)/CLOCKS_PER_SEC;
-	
+	gettimeofday(&end, NULL);	/* End the timer */
+	double time_spent = ((end.tv_sec - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;	
 	printf("\nTOTAL TIME: %10.6f\n",time_spent);
 	
 	return 0;

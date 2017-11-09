@@ -46,16 +46,17 @@ void display_list(struct NODE* head, int num_elements)
 		return;
 	}
 
+	if (max_print_clusters < num_elements)	{
+		printf("Warning! Will only display if less than %i clusters.\n",max_print_clusters);
+		return;
+	}
+
 	printf("CLUSTERS -->\n");
 	while ( current != NULL )	{
 		data = current->data;
 		printf("  Cluster %i with %i nodes\n",i,data->num_nodes);
 		i--;
 		current=current->next;
-		if (i < (num_elements - max_print_clusters))	{
-			printf("Warning! Will only display first %i clusters.\n\n",max_print_clusters);
-			return;
-		}
 	}
 	printf("\n");
 }
