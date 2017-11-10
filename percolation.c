@@ -137,6 +137,14 @@ void display_lattice(int** sites, int** hbonds, int** vbonds, int N)
 CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp)
 {	
 	sites[row][col] = -1;	/* Mark current site as visited */
+
+	if (row == chunk[0])	{	/* Add column to bottom bounds */
+		tmp->bottom_bounds[col]=row;
+	}
+
+	if (row == chunk[1])	{	/* Add column to top bounds */
+		tmp->top_bounds[col]=row;
+	}
 	
 	/* Check that a horizontal bond exists to the next occupied site (right) */
 	int right_col = wrap(col + 1, N);	
@@ -209,16 +217,90 @@ CLUSTER* initialise_cluster(int N, int row, int col)
 	tmp->cols_reached = malloc(N * sizeof(int));	/* Allocate columns reached array */
 	tmp->rows_reached = malloc(N * sizeof(int));	/* Allocate rows reached array */
 
+	tmp->top_bounds = malloc(N * sizeof(int));	/* Allocate top row boundaries */
+	tmp->bottom_bounds = malloc(N * sizeof(int));	/* Allocate bottom row boundaries */
+
 	int i;
 	for (i = 0; i < N; i++ )	{
 		tmp->cols_reached[i] = 0;	/* Set values to 0 */
 		tmp->rows_reached[i] = 0;
+		tmp->top_bounds[i]=0;
+		tmp->bottom_bounds[i]=0;
 	}
 
 	tmp->cols_reached[col] = 1;	/* Set starting point as visited */
 	tmp->rows_reached[row] = 1;
 	
 	return tmp;
+}
+
+/* Merges two adjacent cluster lists.
+ * 	Returns the pointer to the head node of the new combined list.
+ */
+NODE* merge_cluster_lists(NODE* bottom_list_head, NODE* top_list_head, int N)
+{
+	NODE* new_head = NULL;
+
+	NODE* bottom_node = bottom_list_head;
+
+	CLUSTER* bottom_cluster;
+	CLUSTER* top_cluster;
+
+	int* control = malloc(N * sizeof(int));
+	memset(control, 1, N);
+	
+	while (bottom_node != NULL)	{
+		
+		NODE* top_node = top_list_head;	/* Reset to list head */
+		
+		int changed = 0;
+
+		/* Check if on the boundary */
+		if (check_bounds_crossover(bottom_cluster->top_bounds,control,N) == 0)	{
+			
+		}
+		
+		else	{	/* Compare against top segment clusters */
+			
+			while (top_node != NULL)	{
+			
+				bottom_cluster = bottom_node->data;
+				top_cluster = top_node->data;
+		
+				if (check_bounds_crossover(top_cluster->bottom_bounds,control,N) == 0)	{
+					changed = 0;
+				}
+				else if (check_bounds_crossover(top_cluster->bottom_bounds,bottom_cluster->top_bounds,N) == 1)	{
+					changed = 1;
+				}
+
+				top_node = top_node->next;	/* Move to next node/cluster */	
+				
+			}
+		}
+			bottom_node = bottom_node->next;	/* Move to next node/cluster */
+	}	
+	
+	return new_head;
+}
+
+/* Take two bounds array and checks to see if they match up */
+int check_bounds_crossover(int* bounds_1, int* bounds_2, int N)
+{
+	int bounds_sum = 0;
+	int i;
+
+	for(i = 0; i < N; i++ )	{
+		bounds_sum = bounds_sum + bounds_1[i]*bounds_2[i];
+	}
+
+	if (bounds_sum == 0)	{
+		return 0;
+		}
+	else	{
+		return 1;
+	}
+	
 }
 
 /* Checks if the cluster spans all columns or rows (or both) based on spanning type */
@@ -251,3 +333,4 @@ int check_spanning(CLUSTER* tmp, int N, int span_type)
 		return 0;
 	}
 }
+

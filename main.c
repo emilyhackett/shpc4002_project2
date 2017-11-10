@@ -84,22 +84,26 @@ int main(int argc, char *argv[])
 	/* Conduct the depth-first search */
 	int i,j;
 	
-	int num_clusters = 0;	/* Also, the size of the linked list */
 	int max_num_nodes = 0;	/* Tracks the maximum number of nodes */
 	int spanning = 0;	/* Checks whether spanning or not */
 	
-	NODE* head = NULL;	/* Initialise the start of cluster linked list */
+	/* Have an array that holds the head of each cluster list for each thread.
+	 * NOTE! This needs to be in the shared memory, hence why declared here */
+	NODE** head_list = malloc(NUM_THREADS * sizeof(NODE*));	/* Initialise the start of cluster linked list */
+	for (i = 0; i < NUM_THREADS; i++)	{
+		head_list[i]= NULL;
+	}
 	
-	/* Loop over all lattice points and conduct a depth first search */
-
 	int chunk_size = N/NUM_THREADS;	/* Split the cluster depending on num_threads */
 	/* NOTE! Can check for not evenly divided, and possibly give the last thread/master thread 
 	 * more rows to handle later
 	 */
 
+	int num_threads_running = NUM_THREADS;
+
 	/* *** START OF PARALLEL *** */
 	printf("* Beginning parallel region with %i threads ...\n",NUM_THREADS);
-	#pragma omp parallel num_threads(NUM_THREADS) shared(num_clusters,head) private(i,j)
+	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N) private(i,j)
 	{
 		int num_threads = omp_get_num_threads();
 		int id = omp_get_thread_num();
@@ -110,6 +114,7 @@ int main(int argc, char *argv[])
 
 		printf("Thread %i of %i taking lattice rows %i -> %i\n",id,num_threads,chunk[0],chunk[1]);
 
+		/* Loop over all lattice points and conduct a depth first search */		
 		for (i = chunk[0]; i < chunk[1]; i++)	{	/* Check the rows relevant to this thread */
 			for (j = 0; j < N; j++)	{
 			
@@ -121,26 +126,38 @@ int main(int argc, char *argv[])
 					/* If the site is occupied, conduct depth_first_search */
 					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,i,j,tmp);
 				
-					//printf(" - Thread %i found cluster @ [%i,%i]\n",id,i,j);
-					head = push(head, tmp);	/* Push this cluster onto the list */
-					#pragma omp atomic	/* Only one thread updates shared variable number of clusters */
-						num_clusters = num_clusters + 1;
-					printf("- Thread %i pushed cluster %i\n",id,num_clusters);
+					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
+					printf("- Thread %i found cluster at [%i,%i] with %i nodes\n",id,i,j,tmp->num_nodes);
 						
 				}
 			}
 		}
 
+		/* BEGIN TO COMBINE CLUSTERS */
+		int divisor = 2;
+
+		#pragma omp wait
+		while (num_threads_running > 1)	{	/* Consolidate into master thread */
+			if (id % divisor == 0)	{	/* Take half of the running threads */
+				#pragma omp master
+					num_threads_running = num_threads_running/2;
+
+				int neighbour_id = id + divisor/2;
+				printf("CHECK -> num_threads_running = %i, id = %i, neighbour_id = %i\n",num_threads_running,id,neighbour_id);				
+
+				//head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id],N);
+			}
+		}
+
 	}
-	
 	/* *** END OF PARALLEL *** */
-	printf("* ... end of parallel region.\n");
+	printf("* ... end of parallel region.\n");	
 	
 	printf("RESULTS:\n");	/* Determine if spanning, max nodes */
 
-	display_list(head, num_clusters);	/* Display the found cluster information */
+	display_list(head_list[0]);	/* Display the found cluster information */
 
-	traverse_list(head,N,span_type,&spanning,&max_num_nodes);	/* Search clusters for span/max */
+	traverse_list(head_list[0],N,span_type,&spanning,&max_num_nodes);	/* Search clusters for span/max */
 
 	printf("Maximum number of nodes in a cluster is %i.\n",max_num_nodes);
 	

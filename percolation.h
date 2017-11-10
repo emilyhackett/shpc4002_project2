@@ -9,11 +9,14 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <omp.h>
+#include <string.h>
 
 typedef struct CLUSTER	{
 	int num_nodes;	
 	int* cols_reached;
 	int* rows_reached;
+	int* top_bounds;
+	int* bottom_bounds;
 } CLUSTER;
 
 typedef struct NODE	{
@@ -48,11 +51,15 @@ extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N);
 extern CLUSTER*	initialise_cluster(int N, int row, int col);
 extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp);
 
+/* Combination of split clusters */
+extern NODE*	merge_cluster_lists(NODE* bottom_seg, NODE* top_seg,int N);
+extern int	check_bounds_crossover(int* bounds_1, int* bounds_2, int N);
+
 /* Check for spanning clusters */
 extern int	check_spanning(CLUSTER* tmp, int N, int span_type);
 
 /* Functions associated with linked list */
 extern NODE* 	push(struct NODE* head, struct CLUSTER* data);
 extern NODE*	pop(struct NODE* head, struct CLUSTER* data);
-extern void	display_list(struct NODE* head, int num_elements);
+extern void	display_list(struct NODE* heads);
 extern int	traverse_list(struct NODE* head, int N, int span_type, int* spanning, int* max_nu_nodes);

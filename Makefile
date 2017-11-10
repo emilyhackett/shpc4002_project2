@@ -5,7 +5,7 @@ CC=gcc-7
 #  -g		adds debugging information
 #  -Wall	turns on most compiler warnings
 #  -fbounds-check
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -fbounds-check
 
 HEADERS = percolation.h
 OBJECTS = percolation.o linked_list.o
