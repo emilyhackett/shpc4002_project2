@@ -46,7 +46,7 @@ extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N);
 
 /* Functions associated with the depth first search */
 extern CLUSTER*	initialise_cluster(int N, int row, int col);
-extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int chunk_size, int row, int col, CLUSTER* tmp);
+extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp);
 
 /* Check for spanning clusters */
 extern int	check_spanning(CLUSTER* tmp, int N, int span_type);

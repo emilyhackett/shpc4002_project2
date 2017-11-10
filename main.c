@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 		printf("* Lattice size = %i\n",N);
 	}
 	else	{
-		fprintf(stderr, "Usage:	./main occ_prob perc_type span_type\n");
+		fprintf(stderr, "Usage:	./main occ_prob perc_type span_type [size]\n");
 		exit(EXIT_FAILURE);
 	}
 	
@@ -76,14 +76,6 @@ int main(int argc, char *argv[])
 		initialise_lattice(sites,N,-1);		/* Set all sites to occupied */
 		initialise_lattice(hbonds,N,occ_prob);	/* Fill bonds according to occ_prob */
 		initialise_lattice(vbonds,N,occ_prob);
-	}
-
-	#pragma omp parallel num_threads(4)
-	{
-		int id = omp_get_thread_num();
-		int num_threads = omp_get_num_threads();
-		
-		printf("Hello from thread %i of %i\n",id,num_threads);
 	}
 
 	/* Print the lattice */
@@ -106,18 +98,19 @@ int main(int argc, char *argv[])
 	 */
 
 	/* *** START OF PARALLEL *** */
-	#pragma omp parallel
+	printf("* Beginning parallel region with %i threads ...\n",NUM_THREADS);
+	#pragma omp parallel num_threads(NUM_THREADS) shared(num_clusters,head) private(i,j)
 	{
 		int num_threads = omp_get_num_threads();
-		printf("num_threads = %i\n",num_threads);
 		int id = omp_get_thread_num();
 
-		int start_row = id;
-		int end_row = start_row + chunk_size - 1;
+		int* chunk = malloc(2 * sizeof(int));
+		chunk[0] = id * chunk_size;	/* Start row */
+		chunk[1] = chunk[0] + chunk_size - 1;	/* End row */
 
-		printf("Thread %i of %i taking lattice rows %i -> %i\n",id,num_threads,start_row,end_row);
+		printf("Thread %i of %i taking lattice rows %i -> %i\n",id,num_threads,chunk[0],chunk[1]);
 
-		for (i = start_row; i < end_row; i++)	{	/* Check the rows relevant to this thread */
+		for (i = chunk[0]; i < chunk[1]; i++)	{	/* Check the rows relevant to this thread */
 			for (j = 0; j < N; j++)	{
 			
 				if (sites[i][j] == 1) 	{	
@@ -126,16 +119,22 @@ int main(int argc, char *argv[])
 					CLUSTER* tmp = initialise_cluster(N,i,j);
 
 					/* If the site is occupied, conduct depth_first_search */
-					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,i,j,tmp);
+					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,i,j,tmp);
 				
+					//printf(" - Thread %i found cluster @ [%i,%i]\n",id,i,j);
 					head = push(head, tmp);	/* Push this cluster onto the list */
-					num_clusters = num_clusters + 1;
+					#pragma omp atomic	/* Only one thread updates shared variable number of clusters */
+						num_clusters = num_clusters + 1;
+					printf("- Thread %i pushed cluster %i\n",id,num_clusters);
+						
 				}
 			}
 		}
+
 	}
 	
 	/* *** END OF PARALLEL *** */
+	printf("* ... end of parallel region.\n");
 	
 	printf("RESULTS:\n");	/* Determine if spanning, max nodes */
 
