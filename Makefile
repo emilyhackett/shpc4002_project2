@@ -14,7 +14,7 @@ OBJECTS = percolation.o linked_list.o
 default: main
 
 main.o: main.c $(OBJECTS) $(HEADERS)
-	$(CC) -c main.c -o main.o
+	$(CC) -fopenmp -c main.c -o main.o
 
 percolation.o: percolation.c $(HEADERS)
 	$(CC) -c percolation.c -o percolation.o

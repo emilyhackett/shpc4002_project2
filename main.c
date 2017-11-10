@@ -85,7 +85,6 @@ int main(int argc, char *argv[])
 		
 		printf("Hello from thread %i of %i\n",id,num_threads);
 	}
-	return 0;
 
 	/* Print the lattice */
 	display_lattice(sites,hbonds,vbonds,N);
