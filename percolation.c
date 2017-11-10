@@ -131,7 +131,7 @@ void display_lattice(int** sites, int** hbonds, int** vbonds, int N)
 /* Depth first search: Recursively checks each lattice site given that the lattice site 
  * is occupied, and that a bond exists that connects it to the previous. 
  */
-CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int row, int col, CLUSTER* tmp)
+CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int chunk_size, int row, int col, CLUSTER* tmp)
 {	
 	sites[row][col] = -1;	/* Mark current site as visited */
 	
@@ -144,7 +144,7 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int 
 		tmp->rows_reached[row] = tmp->rows_reached[row] + 1;
 		
 		/* Continue depth first search */
-		tmp = depth_first_search(sites,hbonds,vbonds,N,row,right_col,tmp);
+		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,row,right_col,tmp);
 	}
 
 	/* Check that a vertical bond exists to the next occupied site (down) */
@@ -156,7 +156,7 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int 
 		tmp->rows_reached[down_row] = tmp->rows_reached[down_row] + 1;
 		
 		/* Continue depth first search */
-		tmp = depth_first_search(sites,hbonds,vbonds,N,down_row,col,tmp);
+		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,down_row,col,tmp);
 	}
 	
 	/* Check that a horizontal bond exists to the previous occupied site (left) */
@@ -168,7 +168,7 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int 
 		tmp->rows_reached[row] = tmp->rows_reached[row] + 1;
 		
 		/* Continue the depth first search */
-		tmp = depth_first_search(sites,hbonds,vbonds,N,row,left_col,tmp);
+		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,row,left_col,tmp);
 	}
 
 	/* Check that a vertical bond exists to the next occupied site (up) */
@@ -180,7 +180,7 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int 
 		tmp->rows_reached[up_row] = tmp->rows_reached[up_row] + 1;
 
 		/* Continue the depth first search */
-		tmp = depth_first_search(sites,hbonds,vbonds,N,up_row,col,tmp);
+		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,up_row,col,tmp);
 	}
 
 	return tmp;

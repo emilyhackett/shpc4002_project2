@@ -1,6 +1,7 @@
 #include "percolation.h"
 
-int N = 16;	/* Define default lattice size */
+int N = 16;		/* Define default lattice size */
+int NUM_THREADS = 8;	/* Define the number of threads */
 
 int main(int argc, char *argv[])
 {
@@ -84,13 +85,15 @@ int main(int argc, char *argv[])
 	int i,j;
 	
 	int num_clusters = 0;	/* Also, the size of the linked list */
-	int max_num_nodes = 0;
-
-	int spanning = 0;
+	int max_num_nodes = 0;	/* Tracks the maximum number of nodes */
+	int spanning = 0;	/* Checks whether spanning or not */
 	
 	NODE* head = NULL;	/* Initialise the start of cluster linked list */
 	
 	/* Loop over all lattice points and conduct a depth first search */
+
+	int chunk_size = N/NUM_THREADS;	/* Split the cluster depending on num_threads */
+
 	for (i = 0; i < N; i++)	{	
 		for (j = 0; j < N; j++)	{
 			
@@ -99,17 +102,8 @@ int main(int argc, char *argv[])
 				CLUSTER* tmp = initialise_cluster(N,i,j);
 
 				/* If the site is occupied, conduct depth_first_search */
-				tmp = depth_first_search(sites,hbonds,vbonds,N,i,j,tmp);
+				tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,i,j,tmp);
 				
-				if (tmp->num_nodes > max_num_nodes)	{
-					max_num_nodes = tmp->num_nodes;
-
-					if (spanning == 0)	{
-						/* Check if spanning since max node */
-						spanning = check_spanning(tmp,N,span_type);
-					}
-				}
-
 				head = push(head, tmp);	/* Push this cluster onto the list */
 				num_clusters = num_clusters + 1;
 			}
@@ -120,6 +114,8 @@ int main(int argc, char *argv[])
 
 	display_list(head, num_clusters);	/* Display the found cluster information */
 
+	traverse_list(head,N,span_type,&spanning,&max_num_nodes);	/* Search clusters for span/max */
+
 	printf("Maximum number of nodes in a cluster is %i.\n",max_num_nodes);
 	
 	if (spanning == 1)	{
@@ -128,6 +124,7 @@ int main(int argc, char *argv[])
 	else	{
 		printf("No spanning cluster of type %i exists.\n",span_type);
 	}
+
 
 	gettimeofday(&end, NULL);	/* End the timer */
 	double time_spent = ((end.tv_sec - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;	

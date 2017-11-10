@@ -25,6 +25,7 @@ extern float occ_prob;
 extern char perc_type;
 extern int span_type;
 extern int N;
+extern int NUM_THREADS;
 
 /* Globals */
 extern int** sites;	/* Lattice sites */
@@ -44,7 +45,7 @@ extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N);
 
 /* Functions associated with the depth first search */
 extern CLUSTER*	initialise_cluster(int N, int row, int col);
-extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int row, int col, CLUSTER* tmp);
+extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int chunk_size, int row, int col, CLUSTER* tmp);
 
 /* Check for spanning clusters */
 extern int	check_spanning(CLUSTER* tmp, int N, int span_type);
@@ -53,3 +54,4 @@ extern int	check_spanning(CLUSTER* tmp, int N, int span_type);
 extern NODE* 	push(struct NODE* head, struct CLUSTER* data);
 extern NODE*	pop(struct NODE* head, struct CLUSTER* data);
 extern void	display_list(struct NODE* head, int num_elements);
+extern int	traverse_list(struct NODE* head, int N, int span_type, int* spanning, int* max_nu_nodes);
