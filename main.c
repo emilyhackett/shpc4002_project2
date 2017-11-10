@@ -1,11 +1,11 @@
 #include "percolation.h"
 
-int N = 16;		/* Define default lattice size */
-int NUM_THREADS = 8;	/* Define the number of threads */
-
 int main(int argc, char *argv[])
 {
 	printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
+
+	int N = 16;	/* Define default lattice size */
+	int NUM_THREADS = 2;	/* Define default num threads */
 	
 	struct timeval start, end;	/* Allocate start and end time vals */
 	gettimeofday(&start, NULL);	/* Begin timing */
@@ -78,6 +78,15 @@ int main(int argc, char *argv[])
 		initialise_lattice(vbonds,N,occ_prob);
 	}
 
+	#pragma omp parallel num_threads(4)
+	{
+		int id = omp_get_thread_num();
+		int num_threads = omp_get_num_threads();
+		
+		printf("Hello from thread %i of %i\n",id,num_threads);
+	}
+	return 0;
+
 	/* Print the lattice */
 	display_lattice(sites,hbonds,vbonds,N);
 	
@@ -93,24 +102,43 @@ int main(int argc, char *argv[])
 	/* Loop over all lattice points and conduct a depth first search */
 
 	int chunk_size = N/NUM_THREADS;	/* Split the cluster depending on num_threads */
+	/* NOTE! Can check for not evenly divided, and possibly give the last thread/master thread 
+	 * more rows to handle later
+	 */
 
-	for (i = 0; i < N; i++)	{	
-		for (j = 0; j < N; j++)	{
+	/* *** START OF PARALLEL *** */
+	#pragma omp parallel
+	{
+		int num_threads = omp_get_num_threads();
+		printf("num_threads = %i\n",num_threads);
+		int id = omp_get_thread_num();
+
+		int start_row = id;
+		int end_row = start_row + chunk_size - 1;
+
+		printf("Thread %i of %i taking lattice rows %i -> %i\n",id,num_threads,start_row,end_row);
+
+		for (i = start_row; i < end_row; i++)	{	/* Check the rows relevant to this thread */
+			for (j = 0; j < N; j++)	{
 			
-			if (sites[i][j] == 1) 	{	
-				/* Allocate new cluster */
-				CLUSTER* tmp = initialise_cluster(N,i,j);
+				if (sites[i][j] == 1) 	{	
+	
+					/* Allocate new cluster */
+					CLUSTER* tmp = initialise_cluster(N,i,j);
 
-				/* If the site is occupied, conduct depth_first_search */
-				tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,i,j,tmp);
+					/* If the site is occupied, conduct depth_first_search */
+					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk_size,i,j,tmp);
 				
-				head = push(head, tmp);	/* Push this cluster onto the list */
-				num_clusters = num_clusters + 1;
+					head = push(head, tmp);	/* Push this cluster onto the list */
+					num_clusters = num_clusters + 1;
+				}
 			}
 		}
 	}
-
-	printf("RESULTS:\n");
+	
+	/* *** END OF PARALLEL *** */
+	
+	printf("RESULTS:\n");	/* Determine if spanning, max nodes */
 
 	display_list(head, num_clusters);	/* Display the found cluster information */
 
@@ -124,7 +152,6 @@ int main(int argc, char *argv[])
 	else	{
 		printf("No spanning cluster of type %i exists.\n",span_type);
 	}
-
 
 	gettimeofday(&end, NULL);	/* End the timer */
 	double time_spent = ((end.tv_sec - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;	

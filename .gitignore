@@ -4,3 +4,4 @@
 *.o
 # Ignore main executable
 main
+a.out
