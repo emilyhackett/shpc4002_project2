@@ -137,14 +137,6 @@ void display_lattice(int** sites, int** hbonds, int** vbonds, int N)
 CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp)
 {	
 	sites[row][col] = -1;	/* Mark current site as visited */
-
-	if (row == chunk[0])	{	/* Add column to bottom bounds */
-		tmp->bottom_bounds[col]=row;
-	}
-
-	if (row == chunk[1])	{	/* Add column to top bounds */
-		tmp->top_bounds[col]=row;
-	}
 	
 	/* Check that a horizontal bond exists to the next occupied site (right) */
 	int right_col = wrap(col + 1, N);	
@@ -153,6 +145,11 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 		tmp->num_nodes = tmp->num_nodes + 1;
 		tmp->cols_reached[right_col] = tmp->cols_reached[right_col] + 1;
 		tmp->rows_reached[row] = tmp->rows_reached[row] + 1;
+
+		/* Add column to top bounds */
+		if (row == chunk[0])	{	tmp->top_bounds[col]=row;	}
+		/* Add column to bottom bounds */
+		if (row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
 		
 		/* Continue depth first search */
 		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,row,right_col,tmp);
@@ -167,6 +164,11 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 			tmp->cols_reached[col] = tmp->cols_reached[col] + 1;
 			tmp->rows_reached[down_row] = tmp->rows_reached[down_row] + 1;
 
+			/* Add column to top bounds */
+			if (down_row == chunk[0])	{	tmp->top_bounds[col]=row;	}
+			/* Add column to bottom bounds */
+			if (down_row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
+
 			/* Continue depth first search */
 			tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,down_row,col,tmp);
 		}
@@ -180,6 +182,11 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 		tmp->cols_reached[left_col] = tmp->cols_reached[left_col] + 1;
 		tmp->rows_reached[row] = tmp->rows_reached[row] + 1;
 		
+		/* Add column to top bounds */
+		if (row == chunk[0])	{	tmp->top_bounds[col]=row;	}
+		/* Add column to bottom bounds */
+		if (row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
+
 		/* Continue the depth first search */
 		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,row,left_col,tmp);
 	}
@@ -192,6 +199,11 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 			tmp->num_nodes = tmp->num_nodes + 1;
 			tmp->cols_reached[col] = tmp->cols_reached[col] + 1;
 			tmp->rows_reached[up_row] = tmp->rows_reached[up_row] + 1;
+
+			/* Add column to top bounds */
+			if (up_row == chunk[0])	{	tmp->top_bounds[col]=row;	}
+			/* Add column to bottom bounds */
+			if (up_row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
 
 			/* Continue the depth first search */
 			tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,up_row,col,tmp);
@@ -236,52 +248,83 @@ CLUSTER* initialise_cluster(int N, int row, int col)
 
 /* Merges two adjacent cluster lists.
  * 	Returns the pointer to the head node of the new combined list.
+ * 	
+ * 	A -> top segment (lower thread id)
+ * 	B -> bottom segment (higher thread id)
  */
-NODE* merge_cluster_lists(NODE* bottom_list_head, NODE* top_list_head, int N)
+NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N)
 {
-	NODE* new_head = NULL;
+	NODE* new_list = NULL;	/* Initialise new list to export */
+	NODE* merge_list = NULL;	/* Initialise new list to track merges */
 
-	NODE* bottom_node = bottom_list_head;
+	NODE* current_A = head_A;	/* Current cluster in top segment */
+	NODE* current_B	= head_B;	/* Current cluster in bottom segment */
 
-	CLUSTER* bottom_cluster;
-	CLUSTER* top_cluster;
+	CLUSTER* cluster_A;	/* Cluster data for A */
+	CLUSTER* cluster_B;	/* Cluster data for B */
 
-	int* control = malloc(N * sizeof(int));
-	memset(control, 1, N);
+	NODE* previous_A = NULL;	/* Tracks previous cluster, to remove from linked list */
+	NODE* previous_B = NULL;
+
+	int* control = malloc(N * sizeof(int));	
+	memset(control, 1, N);	/* Used to see if a cluster lies on the boundary */
+
+	int changed = 1;	/* Tracks changes */
 	
-	while (bottom_node != NULL)	{
-		
-		NODE* top_node = top_list_head;	/* Reset to list head */
-		
-		int changed = 0;
+	/* Loop over list A (bottom segment) and remove clusters not on the bounds */
+	while (current_A != NULL)	{
+		cluster_A = current_A->data;
 
-		/* Check if on the boundary */
-		if (check_bounds_crossover(bottom_cluster->top_bounds,control,N) == 0)	{
-			
+		if (check_bounds_crossover(cluster_A->bottom_bounds,control,N) == 0)	{
+			/* No cluster on the boundaries, add to the new list */
+			new_list = push(new_list, cluster_A);
+
+			if (previous_A == NULL)	{	/* At the start of the list, tf pop off */
+				head_A = pop(head_A, cluster_A);
+			}
+			else	{
+				previous_A->next = current_A->next;	/* Remove current from list */
+			}
+
 		}
-		
-		else	{	/* Compare against top segment clusters */
-			
-			while (top_node != NULL)	{
-			
-				bottom_cluster = bottom_node->data;
-				top_cluster = top_node->data;
-		
-				if (check_bounds_crossover(top_cluster->bottom_bounds,control,N) == 0)	{
-					changed = 0;
-				}
-				else if (check_bounds_crossover(top_cluster->bottom_bounds,bottom_cluster->top_bounds,N) == 1)	{
-					changed = 1;
-				}
+		else	{
+			/* Cluster exists on the bounds, add to merge list */
+			merge_list = push(merge_list, cluster_A);
+		}
 
-				top_node = top_node->next;	/* Move to next node/cluster */	
-				
+		previous_A = current_A;
+		current_A = current_A->next;
+		
+	}
+
+	/* Loop over list B (top segment) and remove clusters not on the bounds */
+	while (current_B != NULL)	{
+		cluster_B = current_B->data;
+
+		if (check_bounds_crossover(cluster_B->top_bounds,control,N) == 0)	{
+			/* No cluster on the boundaries, add to the new list */
+			new_list = push(new_list, cluster_B);
+
+			if (previous_B == NULL)	{	/* At the start of the list, tf pop off */
+				head_B = pop(head_B, cluster_B);
+			}
+			else	{
+				previous_B->next = current_B->next;	/* Remove current from list */
 			}
 		}
-			bottom_node = bottom_node->next;	/* Move to next node/cluster */
-	}	
-	
-	return new_head;
+		else	{
+			/* Cluster exists on the bounds, add to merge list */
+			merge_list = push(merge_list, cluster_B);
+		}
+
+		previous_B = current_B;
+		current_B = current_B->next;
+	}
+
+	printf("MERGE LIST:  ");
+	display_list(merge_list);
+
+	return new_list;
 }
 
 /* Take two bounds array and checks to see if they match up */
@@ -300,7 +343,6 @@ int check_bounds_crossover(int* bounds_1, int* bounds_2, int N)
 	else	{
 		return 1;
 	}
-	
 }
 
 /* Checks if the cluster spans all columns or rows (or both) based on spanning type */

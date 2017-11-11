@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 		printf("Thread %i of %i taking lattice rows %i -> %i\n",id,num_threads,chunk[0],chunk[1]);
 
 		/* Loop over all lattice points and conduct a depth first search */		
-		for (i = chunk[0]; i < chunk[1]; i++)	{	/* Check the rows relevant to this thread */
+		for (i = chunk[0]; i <= chunk[1]; i++)	{	/* Check the rows relevant to this thread */
 			for (j = 0; j < N; j++)	{
 			
 				if (sites[i][j] == 1) 	{	
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,i,j,tmp);
 				
 					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
-					printf("- Thread %i found cluster at [%i,%i] with %i nodes\n",id,i,j,tmp->num_nodes);
+					printf("- Thread %i found cluster at [%i,%i] with %i nodes, bounds are top: %i %i %i %i, bottom: %i %i %i %i\n",id,i,j,tmp->num_nodes,tmp->top_bounds[0],tmp->top_bounds[1],tmp->top_bounds[2],tmp->top_bounds[3],tmp->bottom_bounds[0],tmp->bottom_bounds[1],tmp->bottom_bounds[2],tmp->bottom_bounds[3]);
 						
 				}
 			}
@@ -136,16 +136,19 @@ int main(int argc, char *argv[])
 		/* BEGIN TO COMBINE CLUSTERS */
 		int divisor = 2;
 
-		#pragma omp wait
+		#pragma omp barrier
 		while (num_threads_running > 1)	{	/* Consolidate into master thread */
 			if (id % divisor == 0)	{	/* Take half of the running threads */
 				#pragma omp master
 					num_threads_running = num_threads_running/2;
 
 				int neighbour_id = id + divisor/2;
-				printf("CHECK -> num_threads_running = %i, id = %i, neighbour_id = %i\n",num_threads_running,id,neighbour_id);				
+				printf("CHECK! num_threads_running = %i, id = %i, neighbour_id = %i\n",num_threads_running,id,neighbour_id);				
 
-				//head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id],N);
+				head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id],N);
+
+				#pragma omp master
+					divisor = divisor*2;
 			}
 		}
 
