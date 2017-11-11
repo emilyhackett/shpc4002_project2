@@ -245,6 +245,8 @@ CLUSTER* initialise_cluster(int N, int row, int col)
  */
 NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N)
 {
+	int i;
+
 	NODE* new_list = NULL;	/* Initialise new list to export */
 	NODE* merge_list = NULL;	/* Initialise new list to track merges */
 
@@ -258,7 +260,9 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N)
 	NODE* previous_B = NULL;
 
 	int* control = malloc(N * sizeof(int));	
-	memset(control, 1, N);	/* Used to see if a cluster lies on the boundary */
+	for (i = 0; i < N; i++ )	{
+		control[i] = 1;
+	}
 
 	int changed = 1;	/* Tracks changes */
 	
