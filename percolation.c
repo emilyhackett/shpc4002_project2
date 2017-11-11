@@ -156,18 +156,16 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 	}
 
 	/* Check that a vertical bond exists to the next occupied site (down) */
-	int down_row = row + 1;	/* Remove wrapping */
-	if (down_row >= chunk[0] && down_row <= chunk[1])	{	/* If no wrapping occured */
-		if (vbonds[row][col] == 1 && sites[down_row][col] == 1)	{
+	int down_row = wrap(row + 1, N);	
+	if (vbonds[row][col] == 1 && sites[down_row][col] != 0)	{
+		/* If we can get to this point, add the current site to the bounds list (bottom) */
+		if (row == chunk[1])	{	tmp->bottom_bounds[col] = row + 1;	}
+
+		if (down_row >= chunk[0] && down_row <= chunk[1] && sites[down_row][col] == 1)	{	/* If no wrapping occured */
 			/* Add this node to the cluster */
 			tmp->num_nodes = tmp->num_nodes + 1;
 			tmp->cols_reached[col] = tmp->cols_reached[col] + 1;
 			tmp->rows_reached[down_row] = tmp->rows_reached[down_row] + 1;
-
-			/* Add column to top bounds */
-			if (down_row == chunk[0])	{	tmp->top_bounds[col]=row;	}
-			/* Add column to bottom bounds */
-			if (down_row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
 
 			/* Continue depth first search */
 			tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,down_row,col,tmp);
@@ -181,30 +179,23 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 		tmp->num_nodes = tmp->num_nodes + 1;
 		tmp->cols_reached[left_col] = tmp->cols_reached[left_col] + 1;
 		tmp->rows_reached[row] = tmp->rows_reached[row] + 1;
-		
-		/* Add column to top bounds */
-		if (row == chunk[0])	{	tmp->top_bounds[col]=row;	}
-		/* Add column to bottom bounds */
-		if (row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
 
 		/* Continue the depth first search */
 		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,row,left_col,tmp);
 	}
 
 	/* Check that a vertical bond exists to the next occupied site (up) */
-	int up_row = row - 1;	/* Remove wrapping */
-	if (up_row >= chunk[0] && up_row <= chunk[1])	{	/* If no wrapping occured */
-		if (vbonds[up_row][col] == 1 && sites[up_row][col] == 1)	{
+	int up_row = wrap(row - 1, N);	
+	if (vbonds[up_row][col] == 1 && sites[up_row][col] != 0)	{
+		/* If we can get to this point, add the current site to the bounds list (top) */
+		if (row == chunk[0])	{	tmp->top_bounds[col] = row + 1;	}	
+	
+		if (up_row >= chunk[0] && up_row <= chunk[1] && sites[up_row][col] == 1)	{	/* If no wrapping occured */
 			/* Add this node to the cluster */
 			tmp->num_nodes = tmp->num_nodes + 1;
 			tmp->cols_reached[col] = tmp->cols_reached[col] + 1;
 			tmp->rows_reached[up_row] = tmp->rows_reached[up_row] + 1;
-
-			/* Add column to top bounds */
-			if (up_row == chunk[0])	{	tmp->top_bounds[col]=row;	}
-			/* Add column to bottom bounds */
-			if (up_row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
-
+			
 			/* Continue the depth first search */
 			tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,up_row,col,tmp);
 		}
