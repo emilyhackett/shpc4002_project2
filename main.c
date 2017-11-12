@@ -2,6 +2,7 @@
 
 int main(int argc, char *argv[])
 {
+	int debug = 0;
 	printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
 
 	int N = 4;	/* Define default lattice size */
@@ -102,8 +103,8 @@ int main(int argc, char *argv[])
 	int num_threads_running = NUM_THREADS;
 
 	/* *** START OF PARALLEL *** */
-	printf("* Beginning parallel region with %i threads ...\n",NUM_THREADS);
-	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N) private(i,j)
+	printf("--- BEGIN PARALLEL REGION ---\n");
+	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N,debug) private(i,j)
 	{
 		int num_threads = omp_get_num_threads();
 		int id = omp_get_thread_num();
@@ -129,7 +130,7 @@ int main(int argc, char *argv[])
 					tmp->bottom_row_idx = chunk[1];
 				
 					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
-					printf("- Thread %i found cluster at [%i,%i] with %i nodes, bounds are top: %i %i %i %i, bottom: %i %i %i %i\n",id,i,j,tmp->num_nodes,tmp->top_bounds[0],tmp->top_bounds[1],tmp->top_bounds[2],tmp->top_bounds[3],tmp->bottom_bounds[0],tmp->bottom_bounds[1],tmp->bottom_bounds[2],tmp->bottom_bounds[3]);
+					if(debug)	printf("- Thread %i found cluster at [%i,%i] with %i nodes, bounds are top: %i %i %i %i, bottom: %i %i %i %i\n",id,i,j,tmp->num_nodes,tmp->top_bounds[0],tmp->top_bounds[1],tmp->top_bounds[2],tmp->top_bounds[3],tmp->bottom_bounds[0],tmp->bottom_bounds[1],tmp->bottom_bounds[2],tmp->bottom_bounds[3]);
 						
 				}
 			}
@@ -146,7 +147,7 @@ int main(int argc, char *argv[])
 					num_threads_running = num_threads_running/2;
 
 				int neighbour_id = id + divisor/2;
-				printf("CHECK! num_threads_running = %i, id = %i, neighbour_id = %i\n",num_threads_running,id,neighbour_id);				
+				if(debug)	printf("CHECK! num_threads_running = %i, id = %i, neighbour_id = %i\n",num_threads_running,id,neighbour_id);				
 
 				head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx);
 				
@@ -159,11 +160,11 @@ int main(int argc, char *argv[])
 
 	}
 	/* *** END OF PARALLEL *** */
-	printf("* ... end of parallel region.\n");	
+	printf("--- END OF PARALLEL REGION ---\n\n");	
 	
-	//printf("RESULTS:\n");	/* Determine if spanning, max nodes */
+	printf("RESULTS:\n");	/* Determine if spanning, max nodes */
 
-	//display_list(head_list[0]);	/* Display the found cluster information */
+	display_list(head_list[0]);	/* Display the found cluster information */
 
 	traverse_list(head_list[0],N,span_type,&spanning,&max_num_nodes);	/* Search clusters for span/max */
 

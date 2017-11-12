@@ -285,8 +285,8 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A)
 		current = current->next;
 	}
 
-	printf("NEW LIST: ");
-	display_list(new_list);
+//	printf("NEW LIST: ");
+//	display_list(new_list);
 
 	printf("MERGE LIST: ");
 	display_list(merge_list);
@@ -310,8 +310,8 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A)
 		current=current->next;
 	}
 
-	printf("NEW LIST:  ");
-	display_list(new_list);
+//	printf("NEW LIST:  ");
+//	display_list(new_list);
 
 	return new_list;
 }
@@ -343,7 +343,6 @@ CLUSTER* merge(CLUSTER* current, NODE* head, CLUSTER* new_cluster, int N)
 				printf(" ... against %i node cluster with bottom bounds: %i %i %i %i\n",loop->data->num_nodes,loop->data->bottom_bounds[0],loop->data->bottom_bounds[1],loop->data->bottom_bounds[2],loop->data->bottom_bounds[3]);
 				if ( check_bounds_crossover(loop->data->bottom_bounds, current->top_bounds, N) == 1)	{
 
-					printf("    -> clusters merged\n");
 					/* If match up on bounds, merge */
 					new_cluster = merge(loop->data, head, new_cluster, N);
 				}
