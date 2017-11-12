@@ -141,16 +141,12 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 	/* Check that a horizontal bond exists to the next occupied site (right) */
 	int right_col = wrap(col + 1, N);	
 	if (hbonds[row][col] == 1 && sites[row][right_col] == 1)	{
+
 		/* Add this node to the cluster */
 		tmp->num_nodes = tmp->num_nodes + 1;
 		tmp->cols_reached[right_col] = tmp->cols_reached[right_col] + 1;
 		tmp->rows_reached[row] = tmp->rows_reached[row] + 1;
 
-		/* Add column to top bounds */
-		if (row == chunk[0])	{	tmp->top_bounds[col]=row;	}
-		/* Add column to bottom bounds */
-		if (row == chunk[1])	{	tmp->bottom_bounds[col]=row;	}
-		
 		/* Continue depth first search */
 		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,row,right_col,tmp);
 	}
@@ -179,7 +175,7 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 		tmp->num_nodes = tmp->num_nodes + 1;
 		tmp->cols_reached[left_col] = tmp->cols_reached[left_col] + 1;
 		tmp->rows_reached[row] = tmp->rows_reached[row] + 1;
-
+		
 		/* Continue the depth first search */
 		tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,row,left_col,tmp);
 	}
@@ -318,6 +314,20 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N)
 
 	printf("MERGE LIST:  ");
 	display_list(merge_list);
+
+	NODE* current = merge_list;
+	
+	int* cluster_bounds = malloc(N * sizeof(int));
+	int* bounds_reached = malloc(N * sizeof(int));
+
+	while (current != NULL)	{	/* Loop over the merge list */
+		
+		for(i = 0; i < N; i++ )	{
+			
+		}
+		
+		current=current->next;
+	}	
 
 	return new_list;
 }
