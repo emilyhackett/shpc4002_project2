@@ -4,7 +4,7 @@ int main(int argc, char *argv[])
 {
 	printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
 
-	int N = 16;	/* Define default lattice size */
+	int N = 4;	/* Define default lattice size */
 	int NUM_THREADS = 2;	/* Define default num threads */
 	
 	struct timeval start, end;	/* Allocate start and end time vals */
@@ -125,6 +125,8 @@ int main(int argc, char *argv[])
 
 					/* If the site is occupied, conduct depth_first_search */
 					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,i,j,tmp);
+					tmp->top_row_idx = chunk[0];
+					tmp->bottom_row_idx = chunk[1];
 				
 					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
 					printf("- Thread %i found cluster at [%i,%i] with %i nodes, bounds are top: %i %i %i %i, bottom: %i %i %i %i\n",id,i,j,tmp->num_nodes,tmp->top_bounds[0],tmp->top_bounds[1],tmp->top_bounds[2],tmp->top_bounds[3],tmp->bottom_bounds[0],tmp->bottom_bounds[1],tmp->bottom_bounds[2],tmp->bottom_bounds[3]);
@@ -135,6 +137,7 @@ int main(int argc, char *argv[])
 
 		/* BEGIN TO COMBINE CLUSTERS */
 		int divisor = 2;
+		int bound_idx = chunk[1];
 
 		#pragma omp barrier
 		while (num_threads_running > 1)	{	/* Consolidate into master thread */
@@ -145,7 +148,9 @@ int main(int argc, char *argv[])
 				int neighbour_id = id + divisor/2;
 				printf("CHECK! num_threads_running = %i, id = %i, neighbour_id = %i\n",num_threads_running,id,neighbour_id);				
 
-				head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id],N);
+				head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx);
+				
+				bound_idx = bound_idx + chunk_size;
 
 				#pragma omp master
 					divisor = divisor*2;
@@ -156,9 +161,9 @@ int main(int argc, char *argv[])
 	/* *** END OF PARALLEL *** */
 	printf("* ... end of parallel region.\n");	
 	
-	printf("RESULTS:\n");	/* Determine if spanning, max nodes */
+	//printf("RESULTS:\n");	/* Determine if spanning, max nodes */
 
-	display_list(head_list[0]);	/* Display the found cluster information */
+	//display_list(head_list[0]);	/* Display the found cluster information */
 
 	traverse_list(head_list[0],N,span_type,&spanning,&max_num_nodes);	/* Search clusters for span/max */
 

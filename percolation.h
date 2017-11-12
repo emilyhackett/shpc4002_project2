@@ -15,8 +15,11 @@ typedef struct CLUSTER	{
 	int num_nodes;	
 	int* cols_reached;
 	int* rows_reached;
+	int top_row_idx;
+	int bottom_row_idx;
 	int* top_bounds;
 	int* bottom_bounds;
+	int merged;
 } CLUSTER;
 
 typedef struct NODE	{
@@ -52,8 +55,9 @@ extern CLUSTER*	initialise_cluster(int N, int row, int col);
 extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp);
 
 /* Combination of split clusters */
-extern NODE*	merge_cluster_lists(NODE* bottom_seg, NODE* top_seg,int N);
+extern NODE*	merge_cluster_lists(NODE* bottom_seg, NODE* top_seg,int N, int end_idx_A);
 extern int	check_bounds_crossover(int* bounds_1, int* bounds_2, int N);
+extern CLUSTER*	merge(CLUSTER* current, NODE* head, CLUSTER* new_cluster, int N);
 
 /* Check for spanning clusters */
 extern int	check_spanning(CLUSTER* tmp, int N, int span_type);

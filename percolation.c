@@ -211,6 +211,8 @@ CLUSTER* initialise_cluster(int N, int row, int col)
 		exit(EXIT_FAILURE);
 	}
 
+	tmp->merged = 0;
+
 	tmp->num_nodes = 1;	/* Set the number of nodes to 1 to count start point */
 
 	tmp->cols_reached = malloc(N * sizeof(int));	/* Allocate columns reached array */
@@ -239,97 +241,131 @@ CLUSTER* initialise_cluster(int N, int row, int col)
  * 	A -> top segment (lower thread id)
  * 	B -> bottom segment (higher thread id)
  */
-NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N)
+NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A)
 {
 	int i;
 
 	NODE* new_list = NULL;	/* Initialise new list to export */
-	NODE* merge_list = NULL;	/* Initialise new list to track merges */
+	NODE* merge_list = NULL;	/* Initialise new list of merging clusters */
 
-	NODE* current_A = head_A;	/* Current cluster in top segment */
-	NODE* current_B	= head_B;	/* Current cluster in bottom segment */
-
-	CLUSTER* cluster_A;	/* Cluster data for A */
-	CLUSTER* cluster_B;	/* Cluster data for B */
-
-	NODE* previous_A = NULL;	/* Tracks previous cluster, to remove from linked list */
-	NODE* previous_B = NULL;
-
+	NODE* current;
+	
 	int* control = malloc(N * sizeof(int));	
 	for (i = 0; i < N; i++ )	{
 		control[i] = 1;
 	}
-
-	int changed = 1;	/* Tracks changes */
 	
 	/* Loop over list A (bottom segment) and remove clusters not on the bounds */
-	while (current_A != NULL)	{
-		cluster_A = current_A->data;
-
-		if (check_bounds_crossover(cluster_A->bottom_bounds,control,N) == 0)	{
+	current = head_A;
+	while (current != NULL)	{
+		if (check_bounds_crossover(current->data->bottom_bounds,control,N) == 0)	{
 			/* No cluster on the boundaries, add to the new list */
-			new_list = push(new_list, cluster_A);
-
-			if (previous_A == NULL)	{	/* At the start of the list, tf pop off */
-				head_A = pop(head_A, cluster_A);
-			}
-			else	{
-				previous_A->next = current_A->next;	/* Remove current from list */
-			}
+			new_list = push(new_list, current->data);
 
 		}
-		else	{
-			/* Cluster exists on the bounds, add to merge list */
-			merge_list = push(merge_list, cluster_A);
+		else	{	/* Add to the list to be merged */
+			merge_list = push(merge_list, current->data);
 		}
 
-		previous_A = current_A;
-		current_A = current_A->next;
-		
+		current = current->next;	
 	}
 
 	/* Loop over list B (top segment) and remove clusters not on the bounds */
-	while (current_B != NULL)	{
-		cluster_B = current_B->data;
-
-		if (check_bounds_crossover(cluster_B->top_bounds,control,N) == 0)	{
+	current = head_B;
+	while (current != NULL)	{
+		if (check_bounds_crossover(current->data->top_bounds,control,N) == 0)	{
 			/* No cluster on the boundaries, add to the new list */
-			new_list = push(new_list, cluster_B);
+			new_list = push(new_list, current->data);
 
-			if (previous_B == NULL)	{	/* At the start of the list, tf pop off */
-				head_B = pop(head_B, cluster_B);
-			}
-			else	{
-				previous_B->next = current_B->next;	/* Remove current from list */
-			}
 		}
-		else	{
-			/* Cluster exists on the bounds, add to merge list */
-			merge_list = push(merge_list, cluster_B);
+		else	{	/* Add to the merge list */
+			merge_list = push(merge_list, current->data);
 		}
-
-		previous_B = current_B;
-		current_B = current_B->next;
+		
+		current = current->next;
 	}
 
-	printf("MERGE LIST:  ");
+	printf("NEW LIST: ");
+	display_list(new_list);
+
+	printf("MERGE LIST: ");
 	display_list(merge_list);
 
-	NODE* current = merge_list;
-	
-	int* cluster_bounds = malloc(N * sizeof(int));
-	int* bounds_reached = malloc(N * sizeof(int));
-
+	current = merge_list;
 	while (current != NULL)	{	/* Loop over the merge list */
 		
-		for(i = 0; i < N; i++ )	{
-			
-		}
+		if (current->data->merged != 1)	{
+			printf("Checking %i node cluster with bounds top: %i %i %i %i, bottom: %i %i %i %i ...\n",current->data->num_nodes,current->data->top_bounds[0],current->data->top_bounds[1],current->data->top_bounds[2],current->data->top_bounds[3],current->data->bottom_bounds[0],current->data->bottom_bounds[1],current->data->bottom_bounds[2],current->data->bottom_bounds[3]);;
 		
+			CLUSTER* new_cluster = initialise_cluster(N,1,1);	
+			new_cluster->cols_reached[1] = 0;	/* Fix allocation */
+			new_cluster->rows_reached[1] = 0;
+			new_cluster->num_nodes = 0;
+
+			new_cluster = merge(current->data, merge_list, new_cluster, N);
+
+			new_list = push(new_list, new_cluster);
+		}
+
 		current=current->next;
-	}	
+	}
+
+	printf("NEW LIST:  ");
+	display_list(new_list);
 
 	return new_list;
+}
+
+/* Recursively checks each cluster in a list against the main cluster to determine
+ * whether or not they should be merged or not.
+ */
+CLUSTER* merge(CLUSTER* current, NODE* head, CLUSTER* new_cluster, int N)
+{
+	NODE* loop = head;
+
+	current->merged = 1;
+
+	/* Add this cluster information to the new cluster */
+	new_cluster->num_nodes = new_cluster->num_nodes + current->num_nodes;
+	
+	int i;
+	for (i = 0; i < N; i++)	{
+		new_cluster->cols_reached[i] = new_cluster->cols_reached[i] + current->cols_reached[i];
+		new_cluster->rows_reached[i] = new_cluster->rows_reached[i] + current->rows_reached[i];
+	}		
+
+	while(loop != NULL)	{	/* Loop over list */
+
+		if (loop->data->merged != 1)	{	/* If cluster not merged, check */
+
+			/* Check bounds (if on top) */
+			if (loop->data->bottom_row_idx + 1 == current->top_row_idx)	{
+				printf(" ... against %i node cluster with bottom bounds: %i %i %i %i\n",loop->data->num_nodes,loop->data->bottom_bounds[0],loop->data->bottom_bounds[1],loop->data->bottom_bounds[2],loop->data->bottom_bounds[3]);
+				if ( check_bounds_crossover(loop->data->bottom_bounds, current->top_bounds, N) == 1)	{
+
+					printf("    -> clusters merged\n");
+					/* If match up on bounds, merge */
+					new_cluster = merge(loop->data, head, new_cluster, N);
+				}
+			}
+			
+			/* Check bounds (if on bottom) */			
+			if (loop->data->top_row_idx + 1 == current->bottom_row_idx)	{
+
+				printf(" ... against %i node cluster with top bounds: %i %i %i %i\n",loop->data->num_nodes,loop->data->top_bounds[0],loop->data->top_bounds[1],loop->data->top_bounds[2],loop->data->top_bounds[3]);
+				if ( check_bounds_crossover(loop->data->top_bounds, current->bottom_bounds, N) == 1)	{
+					
+					/* If match up on bounds, merge */
+					new_cluster = merge(loop->data, head, new_cluster, N);
+				}
+			}
+		}
+
+		loop = loop->next;
+	}
+
+	return new_cluster;
+
 }
 
 /* Take two bounds array and checks to see if they match up */
