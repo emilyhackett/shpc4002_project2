@@ -2,6 +2,12 @@
 
 int main(int argc, char *argv[])
 {
+	int i,j;
+	
+	float occ_prob;
+	char perc_type;
+	int span_type;
+
 	int rank,size;
 
 	MPI_Init( NULL, NULL);
@@ -9,20 +15,18 @@ int main(int argc, char *argv[])
         MPI_Comm_size( MPI_COMM_WORLD, &size );
 	printf("I am %i of %i\n",rank,size);
 
-	int debug = 0;
-	if (rank == 0)	{
-		printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
-	}
-
 	int N = 4;	/* Define default lattice size */
 	int NUM_THREADS = 2;	/* Define default num threads */
 	
 	struct timeval start,end;	/* Allocate start and end time vals */	
+	
+	int chunk_size = N/NUM_THREADS;	/* Split the cluster depending on num_threads */	
 
 	if (rank == 0)	{
+		printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
 		gettimeofday(&start, NULL);	/* Begin timing */
 	}
-
+		
 	/* CHECK COMMAND LINE ARGUMENTS:
 	 * If 3 command line arguments read, assume they are:
 	 * 	argv[1]: Occupancy probability, btwn 0 and 1	 
@@ -31,10 +35,7 @@ int main(int argc, char *argv[])
 	 * If 4 command line arguments read, assume:
 	 * 	argv[4]: Lattice size (must be power of 2)
 	 */
-	float occ_prob;
-	char perc_type;
-	int span_type;
-	
+
 	if (argc > 3)	{
 		occ_prob=atof(argv[1]);	/* Occupancy probability */
 		if (occ_prob<0||occ_prob>1)	{
@@ -67,39 +68,49 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	if (rank == 0)	{
-                printf("* Occupancy probability = %5.4f\n",occ_prob);		
+	if (rank == 0)	{	
+		/* Print these results to screen */
+		printf("* Occupancy probability = %5.4f\n",occ_prob);		
 		printf("* Percolation type = %c\n",perc_type);
         	printf("* Spanning type = %i\n",span_type);
 		printf("* Percolation type = %c\n",perc_type);
-                printf("* Lattice size = %i\n",N);
-	}
+                printf("* Lattice size = %i\n",N);	
 	
+		int** sites = allocate_lattice(N,N);	/* Allocate the site lattice */
+		int** hbonds = allocate_lattice(N,N);	/* Allocate horizontal bonds */
+		int** vbonds = allocate_lattice(N,N);	/* Allocate vertical bonds */
+	
+		/* Initialise the lattice and bonds based on percolation type */
+		if (perc_type == 's') {
+			initialise_lattice(sites,N,occ_prob);	/* Fill lattice according to occ_prob */
+			initialise_lattice(hbonds,N,-1);	/* Set all horizontal bonds equal to 1 */
+			initialise_lattice(vbonds,N,-1);	/* Set all vertical bonds equal to 1 */
+		}
+		if (perc_type == 'b') {
+			initialise_lattice(sites,N,-1);		/* Set all sites to occupied */
+			initialise_lattice(hbonds,N,occ_prob);	/* Fill bonds according to occ_prob */
+			initialise_lattice(vbonds,N,occ_prob);
+		}
+		
+		/* Print the lattice */
+		display_lattice(sites,hbonds,vbonds,N);
+
+		/* Loop over all other processes and send parts of the lattice to them */
+//		for (i = 1; i < size; i++ )	{
+//			MPI_Send(&sites, N*chunk_size, MPI_INT, i, 1, MPI_COMM_WORLD);
+//		}
+	}
+	else	{
+		/* Allocate space for the lattice chunk */
+		int** sites = allocate_lattice(N,chunk_size);
+		int** hbonds = allocate_lattice(N,chunk_size);
+		int** vbonds = allocate_lattice(N,chunk_size);
+	}
+
 	MPI_Finalize();
 	return 0;
-
-	int** sites = allocate_lattice(N);	/* Allocate the site lattice */
-	int** hbonds = allocate_lattice(N);	/* Allocate horizontal bonds */
-	int** vbonds = allocate_lattice(N);	/* Allocate vertical bonds */
 	
-	/* Initialise the lattice and bonds based on percolation type */
-	if (perc_type == 's') {
-		initialise_lattice(sites,N,occ_prob);	/* Fill lattice according to occ_prob */
-		initialise_lattice(hbonds,N,-1);	/* Set all horizontal bonds equal to 1 */
-		initialise_lattice(vbonds,N,-1);	/* Set all vertical bonds equal to 1 */
-	}
-	if (perc_type == 'b') {
-		initialise_lattice(sites,N,-1);		/* Set all sites to occupied */
-		initialise_lattice(hbonds,N,occ_prob);	/* Fill bonds according to occ_prob */
-		initialise_lattice(vbonds,N,occ_prob);
-	}
-
-	/* Print the lattice */
-	display_lattice(sites,hbonds,vbonds,N);
-	
-	/* Conduct the depth-first search */
-	int i,j;
-	
+	/* Conduct the depth-first search */	
 	int max_num_nodes = 0;	/* Tracks the maximum number of nodes */
 	int spanning = 0;	/* Checks whether spanning or not */
 	
@@ -110,11 +121,6 @@ int main(int argc, char *argv[])
 		head_list[i]= NULL;
 	}
 	
-	int chunk_size = N/NUM_THREADS;	/* Split the cluster depending on num_threads */
-	/* NOTE! Can check for not evenly divided, and possibly give the last thread/master thread 
-	 * more rows to handle later
-	 */
-
 	int num_threads_running = NUM_THREADS;
 
 	/* *** START OF PARALLEL *** */

@@ -17,8 +17,8 @@ int wrap(int val, int max)
 	}
 }
 
-/* Allocates space for the MxM lattice, checking for memory faults */
-int** allocate_lattice(int N)
+/* Allocates space for the Nxchunk lattice, checking for memory faults */
+int** allocate_lattice(int N, int chunk)
 {
 	int i,j;
 	int** lattice=malloc(N * sizeof(int*));
@@ -27,7 +27,7 @@ int** allocate_lattice(int N)
 	}
 	
 	for(i = 0; i < N; i++) {
-		lattice[i]=malloc(N * sizeof(int));
+		lattice[i]=malloc(chunk * sizeof(int));
 		if (lattice[i] == NULL)	{	/* Check memory alloc */
 			fprintf(stderr,"ERROR: Lattice allocation unsuccessful\n");
 		}
