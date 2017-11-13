@@ -2,14 +2,26 @@
 
 int main(int argc, char *argv[])
 {
+	int rank,size;
+
+	MPI_Init( NULL, NULL);
+	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+        MPI_Comm_size( MPI_COMM_WORLD, &size );
+	printf("I am %i of %i\n",rank,size);
+
 	int debug = 0;
-	printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
+	if (rank == 0)	{
+		printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
+	}
 
 	int N = 4;	/* Define default lattice size */
 	int NUM_THREADS = 2;	/* Define default num threads */
 	
-	struct timeval start, end;	/* Allocate start and end time vals */
-	gettimeofday(&start, NULL);	/* Begin timing */
+	struct timeval start,end;	/* Allocate start and end time vals */	
+
+	if (rank == 0)	{
+		gettimeofday(&start, NULL);	/* Begin timing */
+	}
 
 	/* CHECK COMMAND LINE ARGUMENTS:
 	 * If 3 command line arguments read, assume they are:
@@ -29,22 +41,15 @@ int main(int argc, char *argv[])
 			fprintf(stderr,"ERROR: Occupancy probability must lie within [0,1]\n");
 			exit(EXIT_FAILURE);
 		}
-		printf("* Occupancy probability = %5.4f\n",occ_prob);
 		
 		perc_type=*argv[2];	/* Percolation type, site or bond */
-		if (perc_type=='s'||perc_type=='b')	{
-			printf("* Percolation type = %c\n",perc_type);
-		}
-		else	{
+		if (perc_type!='s' && perc_type!='b')	{
 			fprintf(stderr,"ERROR: Percolation type must be 's' (site) or 'b' (bond)\n");
 			exit(EXIT_FAILURE);
 		}
 		
 		span_type=atoi(argv[3]);	/* Spanning type */
-		if (span_type==0||span_type==1||span_type==2)	{
-			printf("* Spanning type = %i\n",span_type);
-		}
-		else	{
+		if (span_type!=0 && span_type!=1 && span_type!=2)	{
 			fprintf(stderr,"ERROR: Spanning type must be 0 (col), 1 (row) or 2 (both)\n");
 			exit(EXIT_FAILURE);
 		}
@@ -56,13 +61,23 @@ int main(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 			}
 		}
-		printf("* Lattice size = %i\n",N);
 	}
 	else	{
 		fprintf(stderr, "Usage:	./main occ_prob perc_type span_type [size]\n");
 		exit(EXIT_FAILURE);
 	}
+
+	if (rank == 0)	{
+                printf("* Occupancy probability = %5.4f\n",occ_prob);		
+		printf("* Percolation type = %c\n",perc_type);
+        	printf("* Spanning type = %i\n",span_type);
+		printf("* Percolation type = %c\n",perc_type);
+                printf("* Lattice size = %i\n",N);
+	}
 	
+	MPI_Finalize();
+	return 0;
+
 	int** sites = allocate_lattice(N);	/* Allocate the site lattice */
 	int** hbonds = allocate_lattice(N);	/* Allocate horizontal bonds */
 	int** vbonds = allocate_lattice(N);	/* Allocate vertical bonds */
@@ -160,27 +175,29 @@ int main(int argc, char *argv[])
 
 	}
 	/* *** END OF PARALLEL *** */
-	printf("--- END OF PARALLEL REGION ---\n\n");	
+	if (rank == 0)	{
+		printf("--- END OF PARALLEL REGION ---\n\n");	
 	
-	printf("RESULTS:\n");	/* Determine if spanning, max nodes */
+		printf("RESULTS:\n");	/* Determine if spanning, max nodes */
 
-	display_list(head_list[0]);	/* Display the found cluster information */
+		display_list(head_list[0]);	/* Display the found cluster information */
 
-	traverse_list(head_list[0],N,span_type,&spanning,&max_num_nodes);	/* Search clusters for span/max */
+		traverse_list(head_list[0],N,span_type,&spanning,&max_num_nodes);	/* Search clusters for span/max */
 
-	printf("Maximum number of nodes in a cluster is %i.\n",max_num_nodes);
+		printf("Maximum number of nodes in a cluster is %i.\n",max_num_nodes);
 	
-	if (spanning == 1)	{
-		printf("Spanning cluster of type %i exists.\n",span_type);
-	}
-	else	{
-		printf("No spanning cluster of type %i exists.\n",span_type);
-	}
+		if (spanning == 1)	{
+			printf("Spanning cluster of type %i exists.\n",span_type);
+		}
+		else	{
+			printf("No spanning cluster of type %i exists.\n",span_type);
+		}
 
-	gettimeofday(&end, NULL);	/* End the timer */
-	double time_spent = ((end.tv_sec - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;	
-	printf("\nTOTAL TIME: %10.6f\n",time_spent);
-	
+		gettimeofday(&end, NULL);	/* End the timer */
+		double time_spent = ((end.tv_sec - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;	
+		printf("\nTOTAL TIME: %10.6f\n",time_spent);
+	}	
+
 	return 0;
 	
 }

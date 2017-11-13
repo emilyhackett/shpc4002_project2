@@ -1,6 +1,6 @@
 # Compiler
 #CC=gcc-7
-CC=gcc
+CC=mpicc
 
 # Compiler flags
 #  -g		adds debugging information

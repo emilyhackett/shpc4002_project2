@@ -5,3 +5,6 @@
 # Ignore main executable
 main
 a.out
+#mpi associated -> cannot run except on cluster
+host
+mpi_check.c

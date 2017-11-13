@@ -8,8 +8,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <omp.h>
 #include <string.h>
+
+#include <omp.h>
+#include <mpi.h>
 
 typedef struct CLUSTER	{
 	int num_nodes;	
