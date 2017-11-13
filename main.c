@@ -97,14 +97,14 @@ int main(int argc, char *argv[])
 
 		/* Loop over all other processes and send parts of the lattice to them */
 //		for (i = 1; i < size; i++ )	{
-//			MPI_Send(&sites, N*chunk_size, MPI_INT, i, 1, MPI_COMM_WORLD);
+//			MPI_Send(&sites, N*(chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD);
 //		}
 	}
 	else	{
 		/* Allocate space for the lattice chunk */
-		int** sites = allocate_lattice(N,chunk_size);
-		int** hbonds = allocate_lattice(N,chunk_size);
-		int** vbonds = allocate_lattice(N,chunk_size);
+		int** sites = allocate_lattice(N,chunk_size+2);
+		int** hbonds = allocate_lattice(N,chunk_size+2);
+		int** vbonds = allocate_lattice(N,chunk_size+2);
 	}
 
 	MPI_Finalize();
