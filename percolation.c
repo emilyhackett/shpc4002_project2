@@ -78,17 +78,17 @@ void initialise_lattice(int** lattice, int N, float occ_prob)
  * 	Will only print the lattice if it is 32x32 size or smaller. 
  * 	Otherwise takes too long and is not particuarly useful
  */
-void display_lattice(int** sites, int** hbonds, int** vbonds, int N)
+void display_lattice(int** sites, int** hbonds, int** vbonds, int N, int chunk_size)
 {
 	int i,j;
 	
-	printf("\n%ix%i LATTICE:\n",N,N);
+	printf("\n%ix%i LATTICE:\n",N,chunk_size);
 	if (N > 32) {
 		printf("Warning! Will only print lattice 32x32 and smaller\n\n");
 		return;
 	}
 
-	for(i = 0; i < N; i++) {	/* Loop over rows */
+	for(i = 0; i < chunk_size; i++) {	/* Loop over rows */
 		
 		for(j = 0; j < N; j++ )	{	/* Loop over columns */
 

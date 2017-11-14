@@ -50,7 +50,7 @@ extern int 	wrap(int val, int max);
 /* Functions associated with initialising the 2D lattice and bonds */
 extern int**	allocate_lattice(int N, int chunk);
 extern void	initialise_lattice(int** sites, int N, float occ_prob);
-extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N);
+extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N, int chunk);
 
 /* Functions associated with the depth first search */
 extern CLUSTER*	initialise_cluster(int N, int row, int col);

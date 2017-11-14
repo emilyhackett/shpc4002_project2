@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 		}
 		
 		/* Print the lattice */
-//		display_lattice(main_sites,main_hbonds,main_vbonds,N);
+		display_lattice(main_sites,main_hbonds,main_vbonds,N,N);
 
 		/* Loop over all other processes and send parts of the lattice to them */
 		for (i = 1; i < size; i++ )	{
@@ -129,6 +129,19 @@ int main(int argc, char *argv[])
 			MPI_Isend(&main_hbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 2, MPI_COMM_WORLD, &reqs[1]);
 			MPI_Isend(&main_vbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 3, MPI_COMM_WORLD, &reqs[2]);
 		}
+
+		/* Give master thread first segment */
+		sites = allocate_lattice(N,MPI_chunk_size+2);
+		hbonds = allocate_lattice(N,MPI_chunk_size+2);
+		vbonds = allocate_lattice(N,MPI_chunk_size+2);
+		/* Copy over from master lattice data (main_lattice) */
+		memcpy(&sites[1],&main_sites[0],N*(MPI_chunk_size+1));
+		memcpy(&sites[0],&main_sites[N-1],N);
+		memcpy(&hbonds[1],&main_hbonds[0],N*(MPI_chunk_size+1));
+		memcpy(&hbonds[0],&main_hbonds[N-1],N);
+		memcpy(&vbonds[1],&main_vbonds[0],N*(MPI_chunk_size+1));
+		memcpy(&vbonds[0],&main_vbonds[N-1],N);
+
 	}
 	else	{
 		/* Allocate space for the lattice chunk */
