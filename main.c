@@ -95,9 +95,9 @@ int main(int argc, char *argv[])
 
 	MPI_Barrier(MPI_COMM_WORLD);	/* Wait to check command line arguments */
 
-	int** sites;	/* Pointer for the site lattice */
-	int** hbonds;	/* Pointer for horizontal bonds */
-	int** vbonds;	/* Pointer for vertical bonds */
+	int** sites = allocate_lattice(N,MPI_chunk_size+2);	/* Pointer for the site lattice */
+	int** hbonds = allocate_lattice(N,MPI_chunk_size+2);	/* Pointer for horizontal bonds */
+	int** vbonds = allocate_lattice(N,MPI_chunk_size+2);	/* Pointer for vertical bonds */
 
 	if (rank == 0)	{	
 		
@@ -124,16 +124,38 @@ int main(int argc, char *argv[])
 		for (i = 1; i < size; i++ )	{
 			int start_idx = MPI_chunk_size*i - 1;
 
-			printf("%i: Sending rows [%i -> %i] to node %i.\n",rank,start_idx,start_idx+MPI_chunk_size+2,i);
-			MPI_Isend(&main_sites[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD, &reqs[0]);
-			MPI_Isend(&main_hbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 2, MPI_COMM_WORLD, &reqs[1]);
-			MPI_Isend(&main_vbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 3, MPI_COMM_WORLD, &reqs[2]);
+			/* If not at the end of the lattice, send through normally (taking extra top/bottom row */
+			if (i != size-1)	{
+                        	printf("%i: Sending rows [%i -> %i] to node %i.\n",rank,start_idx,start_idx+MPI_chunk_size+1,i);
+
+				MPI_Isend(&main_sites[start_idx][0], N*(MPI_chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD, &reqs[0]);
+				MPI_Isend(&main_hbonds[start_idx][0], N*(MPI_chunk_size+2), MPI_INT, i, 2, MPI_COMM_WORLD, &reqs[1]);
+				MPI_Isend(&main_vbonds[start_idx][0], N*(MPI_chunk_size+2), MPI_INT, i, 3, MPI_COMM_WORLD, &reqs[2]);
+			}
+			else	{
+				int** end_sites = allocate_lattice(N,MPI_chunk_size+2);
+				int** end_hbonds = allocate_lattice(N,MPI_chunk_size+2);
+				int** end_vbonds = allocate_lattice(N,MPI_chunk_size+2);
+				
+				memcpy(&end_sites[0],&main_sites[start_idx],N*(MPI_chunk_size+1));
+				memcpy(&end_sites[MPI_chunk_size+1],&main_sites[0],N);
+				memcpy(&end_hbonds[0],&main_hbonds[start_idx],N*(MPI_chunk_size+1));
+				memcpy(&end_hbonds[MPI_chunk_size+1],&main_hbonds[0],N);
+				memcpy(&end_vbonds[0],&main_vbonds[start_idx],N*(MPI_chunk_size+1));
+				memcpy(&end_vbonds[MPI_chunk_size+1],&main_vbonds[0],N);
+	
+				printf("%i: LATTICE TO SEND TO %i\n",rank,i);
+				display_lattice(end_sites,end_hbonds,end_vbonds,N,MPI_chunk_size+2);
+
+	                        printf("%i: Sending rows [%i -> %i] to node %i.\n",rank,start_idx,0,i);
+
+				MPI_Isend(&end_sites[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD, &reqs[0]);
+				MPI_Isend(&end_hbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 2, MPI_COMM_WORLD, &reqs[1]);
+				MPI_Isend(&end_vbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 3, MPI_COMM_WORLD, &reqs[2]);
+			}
+
 		}
 
-		/* Give master thread first segment */
-		sites = allocate_lattice(N,MPI_chunk_size+2);
-		hbonds = allocate_lattice(N,MPI_chunk_size+2);
-		vbonds = allocate_lattice(N,MPI_chunk_size+2);
 		/* Copy over from master lattice data (main_lattice) */
 		memcpy(&sites[1],&main_sites[0],N*(MPI_chunk_size+1));
 		memcpy(&sites[0],&main_sites[N-1],N);
@@ -144,10 +166,6 @@ int main(int argc, char *argv[])
 
 	}
 	else	{
-		/* Allocate space for the lattice chunk */
-		sites = allocate_lattice(N,MPI_chunk_size+2);
-		hbonds = allocate_lattice(N,MPI_chunk_size+2);
-		vbonds = allocate_lattice(N,MPI_chunk_size+2);
 		
 		printf("%i: Called MPI_Irecv for lattice ...\n",rank);
 		MPI_Irecv(&sites[0][0], N*(MPI_chunk_size+2), MPI_INT, 0, 1, MPI_COMM_WORLD, &reqs[0]);
@@ -157,6 +175,14 @@ int main(int argc, char *argv[])
 
 	MPI_Waitall(3,reqs,stats);
 	printf("%i: Lattice chunk recieved, beginning DFS.\n",rank);
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	/* Check that the correct segment has been passed */
+	if (rank == 3)	{
+		printf("%i: ",rank);
+		display_lattice(sites,hbonds,vbonds,N,MPI_chunk_size+2);
+	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
