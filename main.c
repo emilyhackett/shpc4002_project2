@@ -19,15 +19,13 @@ int main(int argc, char *argv[])
         MPI_Request reqs[3];
 
 	int N = 4;	/* Define default lattice size */
-	int NUM_THREADS = 2;	/* Define default num threads */
+	int NUM_THREADS = 1;	/* Define default num threads */
 	
 	struct timeval start,end;	/* Allocate start and end time vals */	
 	
-	int chunk_size = N/NUM_THREADS;	/* Split the cluster depending on num_threads */	
-
 	if (rank == 0)	{
 		printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
-		printf("Running on %i nodes in the cluster.\n",size);
+		printf("	Running on %i nodes in the cluster.\n",size);
 		gettimeofday(&start, NULL);	/* Begin timing */
 	}
 		
@@ -72,10 +70,29 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	int MPI_chunk_size = N/size;
 	if (N % size != 0)	{
 		fprintf(stderr,"ERROR: Number of MPI processes must divide into lattice.\n");
 		exit(EXIT_FAILURE);
 	}
+	int OMP_chunk_size = MPI_chunk_size/NUM_THREADS;
+	if (MPI_chunk_size % NUM_THREADS != 0)	{
+		fprintf(stderr,"ERROR: Number of OMP threads must divided into MPI chunk.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Print these and command line argument results */
+	if (rank == 0)	{
+		printf("	Lattice split into MPI chunks of size %i.\n",MPI_chunk_size);
+		printf("	Lattice split into OMP chunks of size %i.\n\n",OMP_chunk_size);
+                
+		printf("* Occupancy probability = %5.4f\n",occ_prob);
+                printf("* Percolation type = %c\n",perc_type);
+                printf("* Spanning type = %i\n",span_type);
+                printf("* Percolation type = %c\n",perc_type);
+                printf("* Lattice size = %i\n\n",N);
+	}
+
 	MPI_Barrier(MPI_COMM_WORLD);	/* Wait to check command line arguments */
 
 	int** sites;	/* Pointer for the site lattice */
@@ -83,56 +100,46 @@ int main(int argc, char *argv[])
 	int** vbonds;	/* Pointer for vertical bonds */
 
 	if (rank == 0)	{	
-		/* Print these results to screen */
-		printf("* Occupancy probability = %5.4f\n",occ_prob);		
-		printf("* Percolation type = %c\n",perc_type);
-        	printf("* Spanning type = %i\n",span_type);
-		printf("* Percolation type = %c\n",perc_type);
-                printf("* Lattice size = %i\n",N);	
-	
-		sites = allocate_lattice(N,N);	/* Allocate the site lattice */
-		hbonds = allocate_lattice(N,N);	/* Allocate horizontal bonds */
-		vbonds = allocate_lattice(N,N);	/* Allocate vertical bonds */
+		
+		int** main_sites = allocate_lattice(N,N);	/* Allocate the site lattice */
+		int** main_hbonds = allocate_lattice(N,N);	/* Allocate horizontal bonds */
+		int** main_vbonds = allocate_lattice(N,N);	/* Allocate vertical bonds */
 	
 		/* Initialise the lattice and bonds based on percolation type */
 		if (perc_type == 's') {
-			initialise_lattice(sites,N,occ_prob);	/* Fill lattice according to occ_prob */
-			initialise_lattice(hbonds,N,-1);	/* Set all horizontal bonds equal to 1 */
-			initialise_lattice(vbonds,N,-1);	/* Set all vertical bonds equal to 1 */
+			initialise_lattice(main_sites,N,occ_prob);	/* Fill lattice according to occ_prob */
+			initialise_lattice(main_hbonds,N,-1);	/* Set all horizontal bonds equal to 1 */
+			initialise_lattice(main_vbonds,N,-1);	/* Set all vertical bonds equal to 1 */
 		}
 		if (perc_type == 'b') {
-			initialise_lattice(sites,N,-1);		/* Set all sites to occupied */
-			initialise_lattice(hbonds,N,occ_prob);	/* Fill bonds according to occ_prob */
-			initialise_lattice(vbonds,N,occ_prob);
+			initialise_lattice(main_sites,N,-1);		/* Set all sites to occupied */
+			initialise_lattice(main_hbonds,N,occ_prob);	/* Fill bonds according to occ_prob */
+			initialise_lattice(main_vbonds,N,occ_prob);
 		}
 		
 		/* Print the lattice */
-		display_lattice(sites,hbonds,vbonds,N);
+//		display_lattice(main_sites,main_hbonds,main_vbonds,N);
 
 		/* Loop over all other processes and send parts of the lattice to them */
 		for (i = 1; i < size; i++ )	{
+			int start_idx = MPI_chunk_size*i - 1;
 
-			MPI_Isend(&sites[0][0], N*(chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD, &reqs[0]);
-//			printf("%i sending sites to %i ...\n",rank,i);
-			MPI_Isend(&hbonds[0][0], N*(chunk_size+2), MPI_INT, i, 2, MPI_COMM_WORLD, &reqs[1]);
-//			printf("%i sending hbonds to %i ...\n",rank,i);
-			MPI_Isend(&vbonds[0][0], N*(chunk_size+2), MPI_INT, i, 3, MPI_COMM_WORLD, &reqs[2]);
-//			printf("%i sending vbonds to %i ...\n",rank,i);
+			printf("%i: Sending rows [%i -> %i] to node %i.\n",rank,start_idx,start_idx+MPI_chunk_size+2,i);
+			MPI_Isend(&main_sites[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD, &reqs[0]);
+			MPI_Isend(&main_hbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 2, MPI_COMM_WORLD, &reqs[1]);
+			MPI_Isend(&main_vbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, i, 3, MPI_COMM_WORLD, &reqs[2]);
 		}
 	}
 	else	{
 		/* Allocate space for the lattice chunk */
-		sites = allocate_lattice(N,chunk_size+2);
-		hbonds = allocate_lattice(N,chunk_size+2);
-		vbonds = allocate_lattice(N,chunk_size+2);
+		sites = allocate_lattice(N,MPI_chunk_size+2);
+		hbonds = allocate_lattice(N,MPI_chunk_size+2);
+		vbonds = allocate_lattice(N,MPI_chunk_size+2);
 		
 		printf("%i: Called MPI_Irecv for lattice ...\n",rank);
-		MPI_Irecv(&sites[0][0], N*(chunk_size+2), MPI_INT, 0, 1, MPI_COMM_WORLD, &reqs[0]);
-//		printf("... %i received sites.\n",rank);
-		MPI_Irecv(&hbonds[0][0], N*(chunk_size+2), MPI_INT, 0, 2, MPI_COMM_WORLD, &reqs[1]);
-//		printf("... %i received hbonds.\n",rank);
-		MPI_Irecv(&vbonds[0][0], N*(chunk_size+2), MPI_INT, 0, 3, MPI_COMM_WORLD, &reqs[2]);
-//		printf("... %i received vbonds.\n",rank);
+		MPI_Irecv(&sites[0][0], N*(MPI_chunk_size+2), MPI_INT, 0, 1, MPI_COMM_WORLD, &reqs[0]);
+		MPI_Irecv(&hbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, 0, 2, MPI_COMM_WORLD, &reqs[1]);
+		MPI_Irecv(&vbonds[0][0], N*(MPI_chunk_size+2), MPI_INT, 0, 3, MPI_COMM_WORLD, &reqs[2]);
 	}
 
 	MPI_Waitall(3,reqs,stats);
@@ -165,8 +172,8 @@ int main(int argc, char *argv[])
 		int id = omp_get_thread_num();
 
 		int* chunk = malloc(2 * sizeof(int));
-		chunk[0] = id * chunk_size;	/* Start row */
-		chunk[1] = chunk[0] + chunk_size - 1;	/* End row */
+		chunk[0] = id * OMP_chunk_size;	/* Start row */
+		chunk[1] = chunk[0] + OMP_chunk_size - 1;	/* End row */
 
 		printf("Node %i: Thread %i of %i taking lattice rows %i -> %i\n",rank,id,num_threads,chunk[0],chunk[1]);
 
@@ -203,7 +210,7 @@ int main(int argc, char *argv[])
 
 				head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx);
 				
-				bound_idx = bound_idx + chunk_size;
+				bound_idx = bound_idx + OMP_chunk_size;
 
 				#pragma omp master
 					divisor = divisor*2;
