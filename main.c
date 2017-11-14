@@ -136,16 +136,25 @@ int main(int argc, char *argv[])
 				int** end_sites = allocate_lattice(N,MPI_chunk_size+2);
 				int** end_hbonds = allocate_lattice(N,MPI_chunk_size+2);
 				int** end_vbonds = allocate_lattice(N,MPI_chunk_size+2);
-				
-				memcpy(&end_sites[0],&main_sites[start_idx],N*(MPI_chunk_size+1));
-				memcpy(&end_sites[MPI_chunk_size+1],&main_sites[0],N);
-				memcpy(&end_hbonds[0],&main_hbonds[start_idx],N*(MPI_chunk_size+1));
-				memcpy(&end_hbonds[MPI_chunk_size+1],&main_hbonds[0],N);
-				memcpy(&end_vbonds[0],&main_vbonds[start_idx],N*(MPI_chunk_size+1));
-				memcpy(&end_vbonds[MPI_chunk_size+1],&main_vbonds[0],N);
-	
-				printf("%i: LATTICE TO SEND TO %i\n",rank,i);
-				display_lattice(end_sites,end_hbonds,end_vbonds,N,MPI_chunk_size+2);
+			
+				for (j = 0; j < MPI_chunk_size+2; j++)	{
+					/* Copy across data from main to end sites */
+					int k;
+					if (j != MPI_chunk_size+1) 	{
+						for (k = 0; k < N; k++)	{
+							end_sites[j][k] = main_sites[start_idx+j][k];
+							end_hbonds[j][k] = main_hbonds[start_idx+j][k];
+							end_vbonds[j][k] = main_vbonds[start_idx+j][k];
+						}
+					}	
+					else {
+						for (k = 0; k < N; k++)	{
+							end_sites[j][k] = main_sites[0][k];
+							end_hbonds[j][k] = main_hbonds[0][k];
+							end_vbonds[j][k] = main_vbonds[0][k];
+						}
+					}
+				}
 
 	                        printf("%i: Sending rows [%i -> %i] to node %i.\n",rank,start_idx,0,i);
 
@@ -175,14 +184,6 @@ int main(int argc, char *argv[])
 
 	MPI_Waitall(3,reqs,stats);
 	printf("%i: Lattice chunk recieved, beginning DFS.\n",rank);
-
-	MPI_Barrier(MPI_COMM_WORLD);
-
-	/* Check that the correct segment has been passed */
-	if (rank == 3)	{
-		printf("%i: ",rank);
-		display_lattice(sites,hbonds,vbonds,N,MPI_chunk_size+2);
-	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
