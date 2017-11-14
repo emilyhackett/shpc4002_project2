@@ -21,13 +21,16 @@ int wrap(int val, int max)
 int** allocate_lattice(int N, int chunk)
 {
 	int i,j;
+
+	/* NOTE! Modified allocation to make sure contiguous (for MPI transfer) */
+	int* data = malloc(N * chunk * sizeof(int));
 	int** lattice=malloc(N * sizeof(int*));
-	if (lattice == NULL)	{	/* Check memory alloc */
+	if (lattice == NULL || data == NULL)	{	/* Check memory alloc */
 		fprintf(stderr,"ERROR: Lattice allocation unsuccessful\n");
 	}
 	
 	for(i = 0; i < N; i++) {
-		lattice[i]=malloc(chunk * sizeof(int));
+		lattice[i]=&(data[chunk*i]);
 		if (lattice[i] == NULL)	{	/* Check memory alloc */
 			fprintf(stderr,"ERROR: Lattice allocation unsuccessful\n");
 		}

@@ -10,10 +10,13 @@ int main(int argc, char *argv[])
 
 	int rank,size;
 
-	MPI_Init( NULL, NULL);
+	MPI_Init( &argc, &argv);
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
         MPI_Comm_size( MPI_COMM_WORLD, &size );
-	printf("I am %i of %i\n",rank,size);
+//	printf("I am %i of %i\n",rank,size);
+
+        MPI_Status stats[3];
+        MPI_Request reqs[3];
 
 	int N = 4;	/* Define default lattice size */
 	int NUM_THREADS = 2;	/* Define default num threads */
@@ -24,6 +27,7 @@ int main(int argc, char *argv[])
 
 	if (rank == 0)	{
 		printf("SHPC4002, PROJECT 2: Emily Hackett, 21489688\n\n");
+		printf("Running on %i nodes in the cluster.\n",size);
 		gettimeofday(&start, NULL);	/* Begin timing */
 	}
 		
@@ -68,6 +72,16 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	if (N % size != 0)	{
+		fprintf(stderr,"ERROR: Number of MPI processes must divide into lattice.\n");
+		exit(EXIT_FAILURE);
+	}
+	MPI_Barrier(MPI_COMM_WORLD);	/* Wait to check command line arguments */
+
+	int** sites;	/* Pointer for the site lattice */
+	int** hbonds;	/* Pointer for horizontal bonds */
+	int** vbonds;	/* Pointer for vertical bonds */
+
 	if (rank == 0)	{	
 		/* Print these results to screen */
 		printf("* Occupancy probability = %5.4f\n",occ_prob);		
@@ -76,9 +90,9 @@ int main(int argc, char *argv[])
 		printf("* Percolation type = %c\n",perc_type);
                 printf("* Lattice size = %i\n",N);	
 	
-		int** sites = allocate_lattice(N,N);	/* Allocate the site lattice */
-		int** hbonds = allocate_lattice(N,N);	/* Allocate horizontal bonds */
-		int** vbonds = allocate_lattice(N,N);	/* Allocate vertical bonds */
+		sites = allocate_lattice(N,N);	/* Allocate the site lattice */
+		hbonds = allocate_lattice(N,N);	/* Allocate horizontal bonds */
+		vbonds = allocate_lattice(N,N);	/* Allocate vertical bonds */
 	
 		/* Initialise the lattice and bonds based on percolation type */
 		if (perc_type == 's') {
@@ -96,20 +110,40 @@ int main(int argc, char *argv[])
 		display_lattice(sites,hbonds,vbonds,N);
 
 		/* Loop over all other processes and send parts of the lattice to them */
-//		for (i = 1; i < size; i++ )	{
-//			MPI_Send(&sites, N*(chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD);
-//		}
+		for (i = 1; i < size; i++ )	{
+
+			MPI_Isend(&sites[0][0], N*(chunk_size+2), MPI_INT, i, 1, MPI_COMM_WORLD, &reqs[0]);
+//			printf("%i sending sites to %i ...\n",rank,i);
+			MPI_Isend(&hbonds[0][0], N*(chunk_size+2), MPI_INT, i, 2, MPI_COMM_WORLD, &reqs[1]);
+//			printf("%i sending hbonds to %i ...\n",rank,i);
+			MPI_Isend(&vbonds[0][0], N*(chunk_size+2), MPI_INT, i, 3, MPI_COMM_WORLD, &reqs[2]);
+//			printf("%i sending vbonds to %i ...\n",rank,i);
+		}
 	}
 	else	{
 		/* Allocate space for the lattice chunk */
-		int** sites = allocate_lattice(N,chunk_size+2);
-		int** hbonds = allocate_lattice(N,chunk_size+2);
-		int** vbonds = allocate_lattice(N,chunk_size+2);
+		sites = allocate_lattice(N,chunk_size+2);
+		hbonds = allocate_lattice(N,chunk_size+2);
+		vbonds = allocate_lattice(N,chunk_size+2);
+		
+		printf("%i: Called MPI_Irecv for lattice ...\n",rank);
+		MPI_Irecv(&sites[0][0], N*(chunk_size+2), MPI_INT, 0, 1, MPI_COMM_WORLD, &reqs[0]);
+//		printf("... %i received sites.\n",rank);
+		MPI_Irecv(&hbonds[0][0], N*(chunk_size+2), MPI_INT, 0, 2, MPI_COMM_WORLD, &reqs[1]);
+//		printf("... %i received hbonds.\n",rank);
+		MPI_Irecv(&vbonds[0][0], N*(chunk_size+2), MPI_INT, 0, 3, MPI_COMM_WORLD, &reqs[2]);
+//		printf("... %i received vbonds.\n",rank);
 	}
 
+	MPI_Waitall(3,reqs,stats);
+	printf("%i: Lattice chunk recieved, beginning DFS.\n",rank);
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
 	MPI_Finalize();
+
 	return 0;
-	
+
 	/* Conduct the depth-first search */	
 	int max_num_nodes = 0;	/* Tracks the maximum number of nodes */
 	int spanning = 0;	/* Checks whether spanning or not */
@@ -125,7 +159,7 @@ int main(int argc, char *argv[])
 
 	/* *** START OF PARALLEL *** */
 	printf("--- BEGIN PARALLEL REGION ---\n");
-	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N,debug) private(i,j)
+	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N) private(i,j)
 	{
 		int num_threads = omp_get_num_threads();
 		int id = omp_get_thread_num();
@@ -134,7 +168,7 @@ int main(int argc, char *argv[])
 		chunk[0] = id * chunk_size;	/* Start row */
 		chunk[1] = chunk[0] + chunk_size - 1;	/* End row */
 
-		printf("Thread %i of %i taking lattice rows %i -> %i\n",id,num_threads,chunk[0],chunk[1]);
+		printf("Node %i: Thread %i of %i taking lattice rows %i -> %i\n",rank,id,num_threads,chunk[0],chunk[1]);
 
 		/* Loop over all lattice points and conduct a depth first search */		
 		for (i = chunk[0]; i <= chunk[1]; i++)	{	/* Check the rows relevant to this thread */
@@ -151,8 +185,6 @@ int main(int argc, char *argv[])
 					tmp->bottom_row_idx = chunk[1];
 				
 					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
-					if(debug)	printf("- Thread %i found cluster at [%i,%i] with %i nodes, bounds are top: %i %i %i %i, bottom: %i %i %i %i\n",id,i,j,tmp->num_nodes,tmp->top_bounds[0],tmp->top_bounds[1],tmp->top_bounds[2],tmp->top_bounds[3],tmp->bottom_bounds[0],tmp->bottom_bounds[1],tmp->bottom_bounds[2],tmp->bottom_bounds[3]);
-						
 				}
 			}
 		}
@@ -168,7 +200,6 @@ int main(int argc, char *argv[])
 					num_threads_running = num_threads_running/2;
 
 				int neighbour_id = id + divisor/2;
-				if(debug)	printf("CHECK! num_threads_running = %i, id = %i, neighbour_id = %i\n",num_threads_running,id,neighbour_id);				
 
 				head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx);
 				
@@ -204,6 +235,7 @@ int main(int argc, char *argv[])
 		printf("\nTOTAL TIME: %10.6f\n",time_spent);
 	}	
 
+	MPI_Finalize();
+
 	return 0;
-	
 }
