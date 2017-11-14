@@ -54,7 +54,7 @@ extern void	display_lattice(int** sites, int** hbonds, int** vbonds, int N, int 
 
 /* Functions associated with the depth first search */
 extern CLUSTER*	initialise_cluster(int N, int row, int col);
-extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp);
+extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp, int rank, int id);
 
 /* Combination of split clusters */
 extern NODE*	merge_cluster_lists(NODE* bottom_seg, NODE* top_seg,int N, int end_idx_A);

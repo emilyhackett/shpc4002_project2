@@ -3,14 +3,14 @@
 int main(int argc, char *argv[])
 {
 	int i,j;
-	
+
 	float occ_prob;
 	char perc_type;
 	int span_type;
 
 	int rank,size;
 
-	MPI_Init( &argc, &argv);
+	MPI_Init( &argc, &argv );
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
         MPI_Comm_size( MPI_COMM_WORLD, &size );
 //	printf("I am %i of %i\n",rank,size);
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
         MPI_Request reqs[3];
 
 	int N = 4;	/* Define default lattice size */
-	int NUM_THREADS = 1;	/* Define default num threads */
+	int NUM_THREADS = 2;	/* Define default num threads */
 	
 	struct timeval start,end;	/* Allocate start and end time vals */	
 	
@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 		printf("	Running on %i nodes in the cluster.\n",size);
 		gettimeofday(&start, NULL);	/* Begin timing */
 	}
-		
+
 	/* CHECK COMMAND LINE ARGUMENTS:
 	 * If 3 command line arguments read, assume they are:
 	 * 	argv[1]: Occupancy probability, btwn 0 and 1	 
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		memcpy(&hbonds[0],&main_hbonds[N-1],N);
 		memcpy(&vbonds[1],&main_vbonds[0],N*(MPI_chunk_size+1));
 		memcpy(&vbonds[0],&main_vbonds[N-1],N);
-
+		printf("%i: Taking rows [%i -> %i].\n",rank,N-1,MPI_chunk_size);
 	}
 	else	{
 		
@@ -183,13 +183,7 @@ int main(int argc, char *argv[])
 	}
 
 	MPI_Waitall(3,reqs,stats);
-	printf("%i: Lattice chunk recieved, beginning DFS.\n",rank);
-
-	MPI_Barrier(MPI_COMM_WORLD);
-
-	MPI_Finalize();
-
-	return 0;
+	printf("%i: Lattice chunk of %i rows recieved, beginning DFS.\n",rank,MPI_chunk_size+2);
 
 	/* Conduct the depth-first search */	
 	int max_num_nodes = 0;	/* Tracks the maximum number of nodes */
@@ -204,64 +198,62 @@ int main(int argc, char *argv[])
 	
 	int num_threads_running = NUM_THREADS;
 
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (rank == 0)	{
+		printf(" ---- MADE IT TO BARRIER 1 (passed lattice) ----\n");
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	
 	/* *** START OF PARALLEL *** */
-	printf("--- BEGIN PARALLEL REGION ---\n");
-	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N) private(i,j)
+	printf("%i: OMP parallel region begun.\n",rank);
+	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N,rank) private(i,j)
 	{
 		int num_threads = omp_get_num_threads();
 		int id = omp_get_thread_num();
 
 		int* chunk = malloc(2 * sizeof(int));
-		chunk[0] = id * OMP_chunk_size;	/* Start row */
+		chunk[0] = id * OMP_chunk_size + 1;	/* Start row */
 		chunk[1] = chunk[0] + OMP_chunk_size - 1;	/* End row */
 
-		printf("Node %i: Thread %i of %i taking lattice rows %i -> %i\n",rank,id,num_threads,chunk[0],chunk[1]);
+		printf("%i: Thread %i of %i taking lattice rows %i -> %i\n",rank,id,num_threads,chunk[0],chunk[1]);
 
+		if (rank == 0)	{
+			printf("%i: Thread %i sleeping.\n",rank,id);
+			sleep(10);
+			printf("%i: Thread %i awake.\n",rank,id);
+		}
+		
 		/* Loop over all lattice points and conduct a depth first search */		
 		for (i = chunk[0]; i <= chunk[1]; i++)	{	/* Check the rows relevant to this thread */
 			for (j = 0; j < N; j++)	{
-			
 				if (sites[i][j] == 1) 	{	
-	
 					/* Allocate new cluster */
 					CLUSTER* tmp = initialise_cluster(N,i,j);
 
 					/* If the site is occupied, conduct depth_first_search */
-					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,i,j,tmp);
+					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,i,j,tmp,rank,id);
+					printf("%i: Thread %i added cluster at [%i,%i]\n",rank,id,i,j);
 					tmp->top_row_idx = chunk[0];
 					tmp->bottom_row_idx = chunk[1];
-				
+
 					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
 				}
 			}
 		}
 
-		/* BEGIN TO COMBINE CLUSTERS */
-		int divisor = 2;
-		int bound_idx = chunk[1];
-
-		#pragma omp barrier
-		while (num_threads_running > 1)	{	/* Consolidate into master thread */
-			if (id % divisor == 0)	{	/* Take half of the running threads */
-				#pragma omp master
-					num_threads_running = num_threads_running/2;
-
-				int neighbour_id = id + divisor/2;
-
-				head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx);
-				
-				bound_idx = bound_idx + OMP_chunk_size;
-
-				#pragma omp master
-					divisor = divisor*2;
-			}
-		}
+		printf("%i: Thread %i finished DFS, now will combine clusters.\n",rank,id);
 
 	}
-	/* *** END OF PARALLEL *** */
+
+	printf("%i: Finished OMP parallel region.\n",rank);
+
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Finalize();
+
+	return 0;
+
 	if (rank == 0)	{
-		printf("--- END OF PARALLEL REGION ---\n\n");	
-	
+
 		printf("RESULTS:\n");	/* Determine if spanning, max nodes */
 
 		display_list(head_list[0]);	/* Display the found cluster information */
