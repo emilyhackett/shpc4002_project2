@@ -110,11 +110,23 @@ void linkedlist_malloc(int num_elements, int N, int* num_nodes, int* top_row_idx
         num_nodes = malloc(num_elements * sizeof(int));
         top_row_idx = malloc(num_elements * sizeof(int));
         bottom_row_idx = malloc(num_elements * sizeof(int));
+	if (num_nodes == NULL || top_row_idx == NULL || bottom_row_idx == NULL)	{
+		fprintf(stderr,"MALLOC CALL UNSUCCESSFUL.\n");
+	}
 
 	int* topb_data = malloc(num_elements * N * sizeof(int));	
 	int* bottomb_data = malloc(num_elements * N * sizeof(int));
 	int* cols_data = malloc(num_elements * N * sizeof(int));
 	int* rows_data = malloc(num_elements * N * sizeof(int));
+	if (topb_data == NULL || bottomb_data == NULL || cols_data == NULL || rows_data == NULL)	{
+		fprintf(stderr,"MALLOC CALL UNSUCCESSFUL.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	top_bounds = malloc(num_elements * sizeof(int*));
+	bottom_bounds = malloc(num_elements * sizeof(int*));
+	cols_spanned = malloc(num_elements * sizeof(int*));
+	rows_spanned = malloc(num_elements * sizeof(int*));
 
 	int i;
 	for (i = 0; i < num_elements; i++)	{
@@ -123,8 +135,6 @@ void linkedlist_malloc(int num_elements, int N, int* num_nodes, int* top_row_idx
 		cols_spanned[i] = &(cols_data[N*i]);
 		rows_spanned[i] = &(rows_data[N*i]);
 	}	
-
-	printf("LINKED LIST MALLOC SUCCESSFUL\n");
 }
 
 /* Converts a linked list into an array (in order to transfer over mpi) */
@@ -132,17 +142,20 @@ void linkedlist_to_array(NODE* head, int num_elements, int N, int* num_nodes, in
 {
 	linkedlist_malloc(num_elements, N, num_nodes, top_row_idx, bottom_row_idx, top_bounds, bottom_bounds, cols_spanned, rows_spanned);
 
-	CLUSTER* current;
-
 	int k;
 	int i = 0;	/* Count place in cluster array */
 	/* Allocate a contiguous array */
 	while( head != NULL)	{
-		current = head->data;
-		
-		num_nodes[i] = current->num_nodes;
+		CLUSTER* current = head->data;
+
+/*		num_nodes[i] = current->num_nodes;
+		printf(" - num_nodes transferred\n");
 		top_row_idx[i] = current->top_row_idx;
+		printf(" - top_row_idx transferred\n");
 		bottom_row_idx[i] = current->bottom_row_idx;
+		printf(" - bottom_row_idx transferred\n");
+
+		printf("hello\n");
 
 		for (k = 0; k < N; k++)	{
 			top_bounds[i][k] = current->top_bounds[k];
@@ -150,7 +163,7 @@ void linkedlist_to_array(NODE* head, int num_elements, int N, int* num_nodes, in
 			cols_spanned[i][k] = current->cols_reached[k];
 			rows_spanned[i][k] = current->rows_reached[k];
 		}
-
+*/
 		head = head->next;
 		i++;
 	}

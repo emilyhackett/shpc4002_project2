@@ -239,7 +239,6 @@ int main(int argc, char *argv[])
 
 					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
 					num_clusters_dfs++;
-					printf("%i: Thread %i pushed cluster %i to the list.\n",rank,id,num_clusters_dfs-1);
 				}
 			}
 		}
@@ -252,7 +251,7 @@ int main(int argc, char *argv[])
 		int num_clusters_in_list;
 
                 #pragma omp barrier
-		if (id == 0)	{	printf("%i: Combining clusters from threads.\n",rank);	}
+		if (id == 0)	{	printf("%i: Combining clusters from threads ...\n",rank);	}
                 while (num_threads_running > 1) {       /* Consolidate into master thread */
                         if (id % divisor == 0)  {       /* Take half of the running threads */
                                 #pragma omp master
@@ -276,10 +275,6 @@ int main(int argc, char *argv[])
 
 	printf("%i: Finished OMP parallel region.\n",rank);
 
-	MPI_Barrier(MPI_COMM_WORLD);
-	MPI_Finalize();
-	return 0;
-	
 	/* Convert linked list into array */
 	int* num_nodes;
 	int* top_row_idx;
@@ -289,7 +284,7 @@ int main(int argc, char *argv[])
 	int**  cols_spanned;
 	int** rows_spanned;
 
-	printf("%i: Converting linked list to arrays...\n",rank);
+	printf("%i: Converting linked list to arrays ...\n",rank);
 
 	linkedlist_to_array(head_list[0], num_clusters, N, num_nodes, top_row_idx, bottom_row_idx, top_bounds, bottom_bounds, cols_spanned, rows_spanned);
 

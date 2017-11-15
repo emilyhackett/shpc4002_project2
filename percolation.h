@@ -15,10 +15,10 @@
 
 typedef struct CLUSTER	{
 	int num_nodes;	
-	int* cols_reached;
-	int* rows_reached;
 	int top_row_idx;
 	int bottom_row_idx;
+	int* cols_reached;
+	int* rows_reached;
 	int* top_bounds;
 	int* bottom_bounds;
 	int merged;

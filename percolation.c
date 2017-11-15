@@ -259,7 +259,7 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A, int*
 	NODE* merge_list = NULL;	/* Initialise new list of merging clusters */
 
 	NODE* current;
-	
+
 	int* control = malloc(N * sizeof(int));	
 	for (i = 0; i < N; i++ )	{
 		control[i] = 1;
@@ -267,6 +267,7 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A, int*
 	
 	/* Loop over list A (bottom segment) and remove clusters not on the bounds */
 	current = head_A;
+	int top_row = head_A->data->top_row_idx;
 	while (current != NULL)	{
 		if (check_bounds_crossover(current->data->bottom_bounds,control,N) == 0)	{
 			/* No cluster on the boundaries, add to the new list */
@@ -283,6 +284,7 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A, int*
 
 	/* Loop over list B (top segment) and remove clusters not on the bounds */
 	current = head_B;
+	int bottom_row = head_B->data->bottom_row_idx;
 	while (current != NULL)	{
 		if (check_bounds_crossover(current->data->top_bounds,control,N) == 0)	{
 			/* No cluster on the boundaries, add to the new list */
@@ -312,6 +314,10 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A, int*
 			new_cluster->num_nodes = 0;
 
 			new_cluster = merge(current->data, merge_list, new_cluster, N);
+
+			/* Set top and bottom indices to be start/end of chunk */
+			new_cluster->top_row_idx = top_row;
+			new_cluster->bottom_row_idx = bottom_row;
 
 			new_list = push(new_list, new_cluster);
 			num_pushed_to_list++;
