@@ -243,6 +243,27 @@ int main(int argc, char *argv[])
 		}
 
 		printf("%i: Thread %i finished DFS, now will combine clusters.\n",rank,id);
+
+                /* BEGIN TO COMBINE CLUSTERS */
+                int divisor = 2;
+                int bound_idx = chunk[1];
+
+                #pragma omp barrier
+                while (num_threads_running > 1) {       /* Consolidate into master thread */
+                        if (id % divisor == 0)  {       /* Take half of the running threads */
+                                #pragma omp master
+                                        num_threads_running = num_threads_running/2;
+
+                                int neighbour_id = id + divisor/2;
+
+                                head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx);
+
+                                bound_idx = bound_idx + OMP_chunk_size;
+
+                                #pragma omp master
+                                        divisor = divisor*2;
+                        }
+                }
 	}
 
 	printf("%i: Finished OMP parallel region.\n",rank);
