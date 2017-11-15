@@ -57,7 +57,7 @@ extern CLUSTER*	initialise_cluster(int N, int row, int col);
 extern CLUSTER*	depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int* chunk, int row, int col, CLUSTER* tmp, int rank, int id);
 
 /* Combination of split clusters */
-extern NODE*	merge_cluster_lists(NODE* bottom_seg, NODE* top_seg,int N, int end_idx_A);
+extern NODE*	merge_cluster_lists(NODE* bottom_seg, NODE* top_seg,int N, int end_idx_A, int* num_clusters_in_list);
 extern int	check_bounds_crossover(int* bounds_1, int* bounds_2, int N);
 extern CLUSTER*	merge(CLUSTER* current, NODE* head, CLUSTER* new_cluster, int N);
 
@@ -69,3 +69,6 @@ extern NODE* 	push(struct NODE* head, struct CLUSTER* data);
 extern NODE*	pop(struct NODE* head, struct CLUSTER* data);
 extern void	display_list(struct NODE* heads);
 extern int	traverse_list(struct NODE* head, int N, int span_type, int* spanning, int* max_nu_nodes);
+extern void	linkedlist_to_array(NODE* head, int num_elements, int N, int* num_nodes, int* top_row_idx, int* bottom_row_idx, int** top_bounds, int** bottom_bounds, int** cols_spanned, int** rows_spanned);
+extern void	linkedlist_allocate(int num_elements, int N, int* num_nodes, int* top_row_idx, int* bottom_row_idx, int** top_bounds, int** bottom_bounds, int** cols_spanned, int** rows_spanned);
+

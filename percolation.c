@@ -249,9 +249,11 @@ CLUSTER* initialise_cluster(int N, int row, int col)
  * 	A -> top segment (lower thread id)
  * 	B -> bottom segment (higher thread id)
  */
-NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A)
+NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A, int* num_clusters_in_list)
 {
 	int i;
+
+	int num_pushed_to_list = 0;
 
 	NODE* new_list = NULL;	/* Initialise new list to export */
 	NODE* merge_list = NULL;	/* Initialise new list of merging clusters */
@@ -268,7 +270,8 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A)
 	while (current != NULL)	{
 		if (check_bounds_crossover(current->data->bottom_bounds,control,N) == 0)	{
 			/* No cluster on the boundaries, add to the new list */
-			new_list = push(new_list, current->data);
+//			new_list = push(new_list, current->data);
+//			num_pushed_to_list++;
 
 		}
 		else	{	/* Add to the list to be merged */
@@ -283,7 +286,8 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A)
 	while (current != NULL)	{
 		if (check_bounds_crossover(current->data->top_bounds,control,N) == 0)	{
 			/* No cluster on the boundaries, add to the new list */
-			new_list = push(new_list, current->data);
+//			new_list = push(new_list, current->data);
+//			num_pushed_to_list++;
 
 		}
 		else	{	/* Add to the merge list */
@@ -310,10 +314,13 @@ NODE* merge_cluster_lists(NODE* head_A, NODE* head_B, int N, int end_idx_A)
 			new_cluster = merge(current->data, merge_list, new_cluster, N);
 
 			new_list = push(new_list, new_cluster);
+			num_pushed_to_list++;
 		}
 
 		current=current->next;
 	}
+
+	*num_clusters_in_list = num_pushed_to_list;
 	
 	return new_list;
 }

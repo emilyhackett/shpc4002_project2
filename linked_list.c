@@ -103,3 +103,55 @@ int traverse_list(struct NODE* head, int N, int span_type, int* spanning, int* m
 
 	return max_cluster_idx;
 }
+
+/* Helper function for linkedlist_to_array below */
+void linkedlist_malloc(int num_elements, int N, int* num_nodes, int* top_row_idx, int* bottom_row_idx, int**top_bounds, int** bottom_bounds, int** cols_spanned, int** rows_spanned)
+{
+        num_nodes = malloc(num_elements * sizeof(int));
+        top_row_idx = malloc(num_elements * sizeof(int));
+        bottom_row_idx = malloc(num_elements * sizeof(int));
+
+	int* topb_data = malloc(num_elements * N * sizeof(int));	
+	int* bottomb_data = malloc(num_elements * N * sizeof(int));
+	int* cols_data = malloc(num_elements * N * sizeof(int));
+	int* rows_data = malloc(num_elements * N * sizeof(int));
+
+	int i;
+	for (i = 0; i < num_elements; i++)	{
+		top_bounds[i] = &(topb_data[N*i]);
+		bottom_bounds[i] = &(bottomb_data[N*i]);
+		cols_spanned[i] = &(cols_data[N*i]);
+		rows_spanned[i] = &(rows_data[N*i]);
+	}	
+
+	printf("LINKED LIST MALLOC SUCCESSFUL\n");
+}
+
+/* Converts a linked list into an array (in order to transfer over mpi) */
+void linkedlist_to_array(NODE* head, int num_elements, int N, int* num_nodes, int* top_row_idx, int* bottom_row_idx, int** top_bounds, int** bottom_bounds, int** cols_spanned, int** rows_spanned)
+{
+	linkedlist_malloc(num_elements, N, num_nodes, top_row_idx, bottom_row_idx, top_bounds, bottom_bounds, cols_spanned, rows_spanned);
+
+	CLUSTER* current;
+
+	int k;
+	int i = 0;	/* Count place in cluster array */
+	/* Allocate a contiguous array */
+	while( head != NULL)	{
+		current = head->data;
+		
+		num_nodes[i] = current->num_nodes;
+		top_row_idx[i] = current->top_row_idx;
+		bottom_row_idx[i] = current->bottom_row_idx;
+
+		for (k = 0; k < N; k++)	{
+			top_bounds[i][k] = current->top_bounds[k];
+			bottom_bounds[i][k] = current->bottom_bounds[k];
+			cols_spanned[i][k] = current->cols_reached[k];
+			rows_spanned[i][k] = current->rows_reached[k];
+		}
+
+		head = head->next;
+		i++;
+	}
+}	

@@ -184,9 +184,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		printf("%i: ",rank);
-		display_lattice(sites,hbonds,vbonds,N,MPI_chunk_size+2);
-		fprintf(stderr,"%i: Taking rows [%i -> %i].\n",rank,N-1,MPI_chunk_size);
+		printf("%i: Taking rows [%i -> %i].\n",rank,N-1,MPI_chunk_size);
 	}
 	else	{
 		
@@ -211,6 +209,7 @@ int main(int argc, char *argv[])
 	}
 	
 	int num_threads_running = NUM_THREADS;
+	int num_clusters;
 
 	/* *** START OF PARALLEL *** */
 	printf("%i: OMP parallel region begun.\n",rank);
@@ -242,13 +241,15 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		printf("%i: Thread %i finished DFS, now will combine clusters.\n",rank,id);
+		printf("%i: Thread %i finished DFS, ready to combine clusters.\n",rank,id);
 
                 /* BEGIN TO COMBINE CLUSTERS */
                 int divisor = 2;
                 int bound_idx = chunk[1];
+		int num_clusters_in_list;
 
                 #pragma omp barrier
+		if (id == 0)	{	printf("%i: Combining clusters from threads.\n",rank);	}
                 while (num_threads_running > 1) {       /* Consolidate into master thread */
                         if (id % divisor == 0)  {       /* Take half of the running threads */
                                 #pragma omp master
@@ -256,7 +257,7 @@ int main(int argc, char *argv[])
 
                                 int neighbour_id = id + divisor/2;
 
-                                head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx);
+                                head_list[id] = merge_cluster_lists(head_list[id],head_list[neighbour_id], N, bound_idx,&num_clusters_in_list);
 
                                 bound_idx = bound_idx + OMP_chunk_size;
 
@@ -264,9 +265,28 @@ int main(int argc, char *argv[])
                                         divisor = divisor*2;
                         }
                 }
+		if (id == 0)	{	
+			num_clusters = num_clusters_in_list;
+			printf("%i: Finished merge, %i clusters in list.\n",rank,num_clusters);	
+		}
 	}
 
 	printf("%i: Finished OMP parallel region.\n",rank);
+
+	/* Convert linked list into array */
+	int* num_nodes;
+	int* top_row_idx;
+	int* bottom_row_idx;
+	int** top_bounds;
+	int** bottom_bounds;
+	int**  cols_spanned;
+	int** rows_spanned;
+
+	printf("%i: Converting linked list to arrays...\n",rank);
+
+	linkedlist_to_array(head_list[0], num_clusters, N, num_nodes, top_row_idx, bottom_row_idx, top_bounds, bottom_bounds, cols_spanned, rows_spanned);
+
+	printf("%i: Conversion was succesful.\n",rank);
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
