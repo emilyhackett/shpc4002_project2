@@ -8,3 +8,5 @@ a.out
 #mpi associated -> cannot run except on cluster
 host
 mpi_check.c
+#SUBMISSION:
+EmilyHackett/*

@@ -275,21 +275,6 @@ int main(int argc, char *argv[])
 
 	printf("%i: Finished OMP parallel region.\n",rank);
 
-	/* Convert linked list into array */
-	int* num_nodes;
-	int* top_row_idx;
-	int* bottom_row_idx;
-	int** top_bounds;
-	int** bottom_bounds;
-	int**  cols_spanned;
-	int** rows_spanned;
-
-	printf("%i: Converting linked list to arrays ...\n",rank);
-
-	linkedlist_to_array(head_list[0], num_clusters, N, num_nodes, top_row_idx, bottom_row_idx, top_bounds, bottom_bounds, cols_spanned, rows_spanned);
-
-	printf("%i: Conversion was succesful.\n",rank);
-
 	MPI_Barrier(MPI_COMM_WORLD);	/* Not necessary -> debugging. Isend/recv will force wait */
 	/* Have 9 different send/recieves: */
 	MPI_Status stats2[9];
@@ -301,25 +286,111 @@ int main(int argc, char *argv[])
 
 	/* Need to send these lists back to the master MPI node */
 	if (rank == 0)	{
-		/* Allocate memory for information */
 		int num_clusters_recv;
-		int* num_nodes_recv;
-		int* top_row_idx_recv;
-		int* bottom_row_idx_recv;
-		int** top_bounds_recv;
-		int** bottom_bounds_recv;
-		int** cols_spanned_recv;
-		int** rows_spanned_recv;		
-
+		int num_nodes;
+		int top_row_idx;
+		int bottom_row_idx;
+		int* top_bounds = malloc( N * sizeof(int));
+		int* bottom_bounds = malloc( N * sizeof(int));
+		int* cols_spanned = malloc( N * sizeof(int));
+		int* rows_spanned = malloc( N * sizeof(int));
+		
 		/* Loop over other processes */
 		for (i = 1; i < size; i++)	{
 			MPI_Recv(&num_clusters_recv, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &stats2[0]);
-			printf("%i: Recieved %i clusters from %i.\n",rank,num_clusters_recv,i);
+			printf("%i: Receiving %i clusters from %i ....\n",rank,num_clusters_recv,i);
+			/* Loop over the number of clusters and recieve */
+			for (j = 0; j < num_clusters_recv; j++)	{
+				                               
+				CLUSTER* tmp = initialise_cluster(N,1,1);
+                                tmp->cols_reached[1] = 0;
+                                tmp->rows_reached[1] = 0;
+
+				MPI_Recv(&num_nodes, 1, MPI_INT, i, 1, MPI_COMM_WORLD, &stats2[1]);
+				MPI_Recv(&top_row_idx, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &stats2[2]);
+				MPI_Recv(&bottom_row_idx, 1, MPI_INT, i, 3, MPI_COMM_WORLD, &stats2[3]);
+				printf("%i: Cluster %i (%i nodes) of %i from %i\n",rank,j,num_nodes,num_clusters,i);
+
+				tmp->num_nodes = num_nodes;
+				tmp->top_row_idx = top_row_idx;
+				tmp->bottom_row_idx = bottom_row_idx;
+
+				MPI_Recv(&(tmp->top_bounds[0]), N, MPI_INT, i, 4, MPI_COMM_WORLD, &stats[4]);
+				MPI_Recv(&(tmp->bottom_bounds[0]), N, MPI_INT, i, 5, MPI_COMM_WORLD, &stats[5]);
+				MPI_Recv(&(tmp->cols_reached[0]), N, MPI_INT, i, 6, MPI_COMM_WORLD, &stats[6]);
+				MPI_Recv(&(tmp->rows_reached[0]), N, MPI_INT, i, 7, MPI_COMM_WORLD, &stats[7]);
+
+				MPI_head_list[i]=push(MPI_head_list[i], tmp);
+			}
 		}
 	}
 	else	{
 		MPI_Send(&num_clusters, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+		/* Look over linked list and send */
+		NODE* current = head_list[0];
+
+		for (i = 0; i < num_clusters; i++)	{
+			CLUSTER* c = current->data;
+			MPI_Send(&(c->num_nodes), 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+			MPI_Send(&(c->top_row_idx), 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
+			MPI_Send(&(c->bottom_row_idx), 1, MPI_INT, 0, 3, MPI_COMM_WORLD);
+
+			/* Extract array information */
+			MPI_Send(&(c->top_bounds[0]), N, MPI_INT, 0, 4, MPI_COMM_WORLD);
+			MPI_Send(&(c->bottom_bounds[0]), N, MPI_INT, 0, 5, MPI_COMM_WORLD);
+			MPI_Send(&(c->cols_reached[0]), N, MPI_INT, 0, 6, MPI_COMM_WORLD);
+			MPI_Send(&(c->rows_reached[0]), N, MPI_INT, 0, 7, MPI_COMM_WORLD);
+			
+			current = current->next;
+		}
 	}
+
+	MPI_Barrier(MPI_COMM_WORLD);	/* NOTE: Since using blocking, should wait anyway */
+
+	/*** HERE IS WHERE I GOT TO ***/
+	/* Insert MPI_Finalize and return so that will compile & run up to here. */
+
+	MPI_Finalize();
+	return 0;
+
+	/* Now master has all the cluster list information. Perform a similar parallel task
+	 * as done before, when merging with OMP (but this time, have num threads as num MPI
+	 * processes (difference is this time it is on shared memory).
+	 */
+	if (rank == 0)	{
+		#pragma omp parallel num_threads(size) shared(MPI_head_list) private(i,j)
+		{
+			int divisor = 2;
+			int num_threads_running = size;
+			int local_num_clusters;
+
+			int id = omp_get_thread_num();
+			int bound_idx = id * MPI_chunk_size;
+
+			while (num_threads_running > 1)	{
+				if (id % divisor == 0)	{
+
+					#pragma omp master
+						num_threads_running = num_threads_running/2;
+
+					int neighbour_id = id + divisor/2;
+
+					MPI_head_list[id] = merge_cluster_lists(MPI_head_list[id], MPI_head_list[neighbour_id], N, bound_idx, &local_num_clusters);
+			
+					bound_idx = bound_idx + MPI_chunk_size;
+					
+					#pragma omp master
+						divisor = divisor*2;
+				}
+			}
+
+			if (id == 0)	{
+				num_clusters = local_num_clusters;
+			}
+		}
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);	/* Wait for master */
 
 	MPI_Finalize();
 
