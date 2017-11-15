@@ -162,7 +162,7 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 	if (down_row <= chunk[1])	{
 		if (vbonds[row][col] == 1 && sites[down_row][col] != 0)	{
 			/* If we can get to this point, add the current site to the bounds list (bottom) */
-			if (row == chunk[1])	{	tmp->bottom_bounds[col] = row + 1;	}
+			if (down_row == chunk[1])	{	tmp->bottom_bounds[col] = row + 1;	}
 
 			if (down_row >= chunk[0] && down_row <= chunk[1] && sites[down_row][col] == 1)	{	/* If no wrapping occured */
 				/* Add this node to the cluster */
@@ -191,7 +191,7 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 	if (up_row >= chunk[0])	{
 		if (vbonds[up_row][col] == 1 && sites[up_row][col] != 0)	{
 			/* If we can get to this point, add the current site to the bounds list (top) */
-			if (row == chunk[0])	{	tmp->top_bounds[col] = row + 1;	}	
+			if (up_row == chunk[0])	{	tmp->top_bounds[col] = row + 1;	}
 	
 			if (up_row >= chunk[0] && up_row <= chunk[1] && sites[up_row][col] == 1)	{	/* If no wrapping occured */
 				/* Add this node to the cluster */

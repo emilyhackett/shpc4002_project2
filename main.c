@@ -223,6 +223,7 @@ int main(int argc, char *argv[])
 		chunk[1] = chunk[0] + OMP_chunk_size - 1;	/* End row */
 
 		printf("%i: Thread %i of %i taking lattice rows %i -> %i\n",rank,id,num_threads,chunk[0],chunk[1]);
+		int num_clusters_dfs = 0;
 
 		/* Loop over all lattice points and conduct a depth first search */		
 		for (i = chunk[0]; i <= chunk[1]; i++)	{	/* Check the rows relevant to this thread */
@@ -237,11 +238,13 @@ int main(int argc, char *argv[])
 					tmp->bottom_row_idx = chunk[1];
 
 					head_list[id] = push(head_list[id], tmp);	/* Push this cluster onto the list */
+					num_clusters_dfs++;
+					printf("%i: Thread %i pushed cluster %i to the list.\n",rank,id,num_clusters_dfs-1);
 				}
 			}
 		}
 
-		printf("%i: Thread %i finished DFS, ready to combine clusters.\n",rank,id);
+		printf("%i: Thread %i finished DFS, ready to combine %i clusters.\n",rank,id,num_clusters_dfs);
 
                 /* BEGIN TO COMBINE CLUSTERS */
                 int divisor = 2;
@@ -273,6 +276,10 @@ int main(int argc, char *argv[])
 
 	printf("%i: Finished OMP parallel region.\n",rank);
 
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Finalize();
+	return 0;
+	
 	/* Convert linked list into array */
 	int* num_nodes;
 	int* top_row_idx;
@@ -288,12 +295,36 @@ int main(int argc, char *argv[])
 
 	printf("%i: Conversion was succesful.\n",rank);
 
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);	/* Not necessary -> debugging. Isend/recv will force wait */
+	/* Have 9 different send/recieves: */
+	MPI_Status stats2[9];
+
+	NODE** MPI_head_list = malloc(size * sizeof(NODE*));
+	for (i = 0; i < size; i++)	{
+		MPI_head_list[i] = NULL;
+	}
 
 	/* Need to send these lists back to the master MPI node */
-//	if (rank == 0)	{
-//		
-//	}
+	if (rank == 0)	{
+		/* Allocate memory for information */
+		int num_clusters_recv;
+		int* num_nodes_recv;
+		int* top_row_idx_recv;
+		int* bottom_row_idx_recv;
+		int** top_bounds_recv;
+		int** bottom_bounds_recv;
+		int** cols_spanned_recv;
+		int** rows_spanned_recv;		
+
+		/* Loop over other processes */
+		for (i = 1; i < size; i++)	{
+			MPI_Recv(&num_clusters_recv, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &stats2[0]);
+			printf("%i: Recieved %i clusters from %i.\n",rank,num_clusters_recv,i);
+		}
+	}
+	else	{
+		MPI_Send(&num_clusters, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+	}
 
 	MPI_Finalize();
 
