@@ -143,12 +143,8 @@ CLUSTER* depth_first_search(int** sites, int** hbonds, int** vbonds, int N, int*
 	int down_row = row + 1;
 	int left_col = wrap(col - 1, N);
         int up_row = row - 1;
-	printf("	%i: Thread %i at [%i,%i], will check R[%i,%i] D[%i,%i] L[%i,%i] U[%i,%i]\n",rank,id,row,col,row,right_col,down_row,col,row,left_col,up_row,col);
 	
 	sites[row][col] = -1;	/* Mark current site as visited */
-
-	MPI_Barrier(MPI_COMM_WORLD);
-	MPI_Barrier(MPI_COMM_WORLD);
 	
 	/* Check that a horizontal bond exists to the next occupied site (right) */
 	if (hbonds[row][col] == 1 && sites[row][right_col] == 1)	{

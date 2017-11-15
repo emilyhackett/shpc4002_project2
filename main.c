@@ -166,13 +166,27 @@ int main(int argc, char *argv[])
 		}
 
 		/* Copy over from master lattice data (main_lattice) */
-		memcpy(&sites[1],&main_sites[0],N*(MPI_chunk_size+1));
-		memcpy(&sites[0],&main_sites[N-1],N);
-		memcpy(&hbonds[1],&main_hbonds[0],N*(MPI_chunk_size+1));
-		memcpy(&hbonds[0],&main_hbonds[N-1],N);
-		memcpy(&vbonds[1],&main_vbonds[0],N*(MPI_chunk_size+1));
-		memcpy(&vbonds[0],&main_vbonds[N-1],N);
-		printf("%i: Taking rows [%i -> %i].\n",rank,N-1,MPI_chunk_size);
+		for (j = 0; j < MPI_chunk_size+2; j++)	{
+			int k;
+			if ( j != 0)	{
+				for (k = 0; k < N; k++)	{
+					sites[j][k] = main_sites[j-1][k];
+					hbonds[j][k] = main_hbonds[j-1][k];
+					vbonds[j][k] = main_vbonds[j-1][k];
+				}
+			}
+			else	{	/* If first row, use last row */
+				for (k = 0; k < N; k++)	{
+					sites[j][k] = main_sites[N-1][k];
+					hbonds[j][k] = main_hbonds[N-1][k];
+					vbonds[j][k] = main_vbonds[N-1][k];
+				}
+			}
+		}
+
+		printf("%i: ",rank);
+		display_lattice(sites,hbonds,vbonds,N,MPI_chunk_size+2);
+		fprintf(stderr,"%i: Taking rows [%i -> %i].\n",rank,N-1,MPI_chunk_size);
 	}
 	else	{
 		
@@ -198,12 +212,6 @@ int main(int argc, char *argv[])
 	
 	int num_threads_running = NUM_THREADS;
 
-	MPI_Barrier(MPI_COMM_WORLD);
-	if (rank == 0)	{
-		printf(" ---- MADE IT TO BARRIER 1 (passed lattice) ----\n");
-	}
-	MPI_Barrier(MPI_COMM_WORLD);
-	
 	/* *** START OF PARALLEL *** */
 	printf("%i: OMP parallel region begun.\n",rank);
 	#pragma omp parallel num_threads(NUM_THREADS) shared(head_list,num_threads_running,N,rank) private(i,j)
@@ -217,12 +225,6 @@ int main(int argc, char *argv[])
 
 		printf("%i: Thread %i of %i taking lattice rows %i -> %i\n",rank,id,num_threads,chunk[0],chunk[1]);
 
-		if (rank == 0)	{
-			printf("%i: Thread %i sleeping.\n",rank,id);
-			sleep(10);
-			printf("%i: Thread %i awake.\n",rank,id);
-		}
-		
 		/* Loop over all lattice points and conduct a depth first search */		
 		for (i = chunk[0]; i <= chunk[1]; i++)	{	/* Check the rows relevant to this thread */
 			for (j = 0; j < N; j++)	{
@@ -232,7 +234,6 @@ int main(int argc, char *argv[])
 
 					/* If the site is occupied, conduct depth_first_search */
 					tmp = depth_first_search(sites,hbonds,vbonds,N,chunk,i,j,tmp,rank,id);
-					printf("%i: Thread %i added cluster at [%i,%i]\n",rank,id,i,j);
 					tmp->top_row_idx = chunk[0];
 					tmp->bottom_row_idx = chunk[1];
 
@@ -242,12 +243,17 @@ int main(int argc, char *argv[])
 		}
 
 		printf("%i: Thread %i finished DFS, now will combine clusters.\n",rank,id);
-
 	}
 
 	printf("%i: Finished OMP parallel region.\n",rank);
 
 	MPI_Barrier(MPI_COMM_WORLD);
+
+	/* Need to send these lists back to the master MPI node */
+//	if (rank == 0)	{
+//		
+//	}
+
 	MPI_Finalize();
 
 	return 0;
